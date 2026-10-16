@@ -1,3 +1,110 @@
+anti_junk:
+  rules:
+    normal: 正常交流
+    flood: 灌水
+    offtopic: 偏题
+    identity: 身份标签
+    attack: 攻击
+    showoff: 自我展示
+    dismissal: 否定需求
+    mockery: 挤兑
+    spam: 广告刷屏
+    feedback: 个人反馈
+    cached: 缓存结果
+  decision_detail: 规则 {rule} · 第 {round} 轮（0 表示本地结果）
+  metrics: 首轮 {firstPass} 条 · 二轮 {secondPass} 条 · 缓存 {cacheHits} 次 · 请求 {requests} 次 · 错误 {errors} 次 · 累计排队 {queueMs} ms · 累计响应 {requestMs} ms
+  status_reviewing: 补充语境后二次判断
+  keep_example: 这条应保留
+  block_example: 这条应屏蔽
+  example_verdict: 案例偏好
+  retry: 重试失败的判断
+  title: AI 评论过滤
+  description: 按个人偏好过滤灌水、挤兑、攻击及偏题展示，优先减少漏杀并保留正常交流。
+  enabled: 启用 AI 评论过滤
+  scope: 逐条检测已加载的评论，按批次判断；命中后折叠，可点击查看原文。修改后点击保存。
+  model: 模型
+  key_note: 密钥仅保存在本机扩展中，不参与设置云同步。评论、根评论、回复语境和相关正反案例与摘要会发送至 DeepSeek；开启元数据时还会发送视频信息或动态正文。
+  show_key: 显示密钥
+  conceal_key: 隐藏密钥
+  save: 保存
+  saved: 已保存，打开的页面会自动应用。
+  test: 测试已保存的配置
+  test_ok: 连接与格式校验通过，沙发评论已被正确识别。
+  prompt: 查看系统提示词
+  records: 评论拦截记录
+  record_note: 仅保存在本机，最多保留最近 200 条，容量超限时淘汰旧记录。清空记录不清除判断缓存。
+  stats: '累计检测 {checked} 条，拦截 {blocked} 条，保留记录 {count} 条。'
+  search: 搜索评论、作者或页面标题
+  refresh: 刷新
+  clear: 清空记录
+  empty: 暂无匹配的拦截记录。
+  parent: 查看父评论语境
+  show: 已隐藏
+  hide: 收起
+  inspect: 检视模式（开发调试）
+  inspect_desc: 命中评论保留正文并标黄。状态：⚪️排队、🟡首轮等待、🟠补充语境复判、🟢保留、🔴拒绝、⚫️出错。可查看判断类别和轮次，失败可重试。
+  show_title: 点击查看原评论
+  hide_title: 收起这条评论
+  backup_title: AntiJunk 独立备份
+  backup_desc: 独立备份配置、原案例、压缩指导和拦截记录。导入合并记录并替换备份中的案例库；旧备份未附案例库或密钥时保留本机内容。
+  backup_include_key: 导出时包含 API Key
+  backup_key_note: 默认关闭；开启后密钥会以明文写入备份文件。
+  backup_import: 导入 AntiJunk
+  backup_export: 导出 AntiJunk
+  backup_imported: AntiJunk 已导入，打开的页面会自动应用。
+  backup_key_missing: 已导入；备份未附带密钥，请在 AI 评论过滤中填写密钥并开启。
+  metadata: 注入主题元数据
+  metadata_desc: 默认开启，提供视频元数据或动态正文与转发语境。关闭后两轮均不查询或发送主题元数据，仅使用评论、根评论和回复语境。修改后保存会重检当前评论。
+  clear_all: 彻底清空记录与缓存
+  clear_all_note: 彻底清空将删除所有拦截记录、判断与视频元数据缓存，重置统计和错误状态，取消旧检测请求。保留密钥、设置和个人案例库；当前评论恢复显示，新评论或刷新页面后继续检测。
+  cleared_all: 记录与缓存已彻底清空，统计已重置。
+  cleared_records: 拦截记录已清空，判断缓存保留。
+  status_queued: 尚未发给 AI（排队中）
+  status_pending: 已发给 AI，等待回复
+  status_approved: AI 已批准保留
+  status_rejected: 已拒绝（AI 或个人案例）
+  status_error: 检测出错，回退为保留
+  add_example: 屏蔽这条评论并加入个人案例库
+  example_added: 已保存个人案例偏好
+  library_title: 个人屏蔽案例库
+  library_desc: 新增案例保留原文和语境（最多 50 条、总量 64 KB）。一键总结会整合已有指导与新案例，生成一段语义指导，经第二次 AI 复核后删除原案例。失败或内容变更时保留原内容；禁止扩大成品牌、话题或立场禁令。
+  example_text: 需要标记偏好的评论原文
+  example_parent: 父评论语境（可选）
+  example_context: 视频标题或适用语境（可选）
+  library_add: 添加案例
+  library_summarize: 一键总结合并
+  library_remove: 删除案例
+  library_saved: 案例库已更新。
+  library_summarized: 语义压缩与复核已通过，原案例已替换为下方指导。
+  library_stats: '待压缩原案例 {count} 条，已保存指导 {length} 字符。'
+  library_summary: 压缩后的案例、教训与指导
+  library_summarizing: 正在压缩并复核…
+  library_summary_note: 指导和相关正反案例会作为偏好数据参与判断。可直接编辑并保存；清空文字后保存可删除指导。再次总结会整合已有指导与新案例，成功后删除原案例。
+  library_summary_save: 保存指导
+  library_clear: 一键清空案例与指导
+  batch_size: 每组评论数量
+  batch_size_desc: 每批最多 1–50 条，默认 10；过长评论仍按总字符数拆分。修改后保存，不会重检已有判断。
+  requests_per_second: 每秒最大请求数量
+  requests_per_second_desc: 1–20 次，默认 1。所有模型请求共享滚动一秒限额和最多 3 路并发；首轮优先，按标签页轮转。修改后保存。
+  errors:
+    summary-too-broad: 复核未通过：指导可能泛化或遗漏。原案例与旧指导均保留，请修改案例后重试。
+    invalid-limits: 每组评论须为 1–50 的整数，每秒请求须为 1–20 的整数。
+    invalid-library: 案例库数据无效，请检查原文长度及语境。
+    library-full: 案例库已满（最多 50 条、总量 64 KB），请先总结压缩或删除部分案例。
+    empty-library: 请先添加案例。
+    stale-library: 案例或配置已变更，旧压缩结果未应用，原内容保留，请重试。
+    invalid-backup: 不是有效的 AntiJunk 备份，或文件超出容量限制。原版设置不接受此格式。
+    missing-key: 请先填写并保存 API Key。
+    unauthorized: API Key 无效或无访问权限，已暂停请求；修正后保存设置恢复。
+    balance: DeepSeek 余额不足，已暂停请求；充值后保存设置恢复。
+    rate-limit: DeepSeek 请求频率受限，评论保持显示。
+    api-error: DeepSeek 返回接口错误，评论保持显示。
+    network: 网络连接或请求超时，评论保持显示。
+    invalid-format: AI 返回格式异常或编号越界，未应用本批判断。
+    storage-error: 无法读取或保存扩展本地数据。
+    cancelled: 配置已变更，旧判断已取消。
+    unexpected-verdict: API 可连接，但未正确识别测试评论。
+    busy: 检测队列繁忙，评论保持显示。
 common:
   view_all: 查看更多
   play_all: 播放全部

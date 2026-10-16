@@ -8,7 +8,7 @@ import { getCommentReplyBranchPath, getCommentReplyBranchToggleY } from '~/utils
 
 import type { CommentRow, CommentTreeComment } from './commentPreview'
 
-const props = defineProps<{ rows: CommentRow[], enabled: boolean }>()
+const props = defineProps<{ rows: CommentRow[], enabled: boolean, layoutKey?: string }>()
 const emit = defineEmits<{ toggle: [comment: CommentTreeComment] }>()
 const { t } = useI18n()
 const container = ref<HTMLElement>()
@@ -93,7 +93,7 @@ function scheduleGuides() {
 }
 
 useResizeObserver(container, scheduleGuides)
-watch(() => [props.rows, props.enabled], scheduleGuides, { deep: true, flush: 'post' })
+watch(() => [props.rows, props.enabled, props.layoutKey], scheduleGuides, { deep: true, flush: 'post' })
 onMounted(scheduleGuides)
 onUpdated(scheduleGuides)
 onBeforeUnmount(() => cancelAnimationFrame(frame))

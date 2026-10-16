@@ -1,0 +1,46 @@
+.moment-comments__comment.is-ai-folded {
+  .moment-comments__content,
+  .moment-comments__pictures {
+    display: none;
+  }
+
+  .moment-comments__author,
+  .moment-comments__meta {
+    visibility: hidden;
+  }
+
+  .moment-comments__avatar {
+    visibility: visible;
+    background: var(--bew-fill-2);
+    pointer-events: none;
+
+    > * {
+      visibility: hidden;
+    }
+  }
+}
+
+.moment-comments__comment.is-ai-inspect .moment-comments__text {
+  background: var(--bew-antijunk-highlight);
+  border-radius: var(--bew-radius-sm);
+}
+
+.anti-junk-toggle {
+  min-height: var(--bew-space-6);
+  min-width: var(--bew-space-6);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--bew-text-3);
+  font-size: var(--bew-font-size-control);
+  line-height: var(--bew-line-height-body);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--bew-text-1);
+  }
+
+  &:active {
+    opacity: 0.7;
+  }
+}

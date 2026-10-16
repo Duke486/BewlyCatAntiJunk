@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill'
 
 import { isContentScriptTargetUrl } from '~/constants/contentScript'
+import { setupAntiJunk } from '~/features/antiJunk/background'
 import { BILIBILI_DESKTOP_USER_AGENT, isBilibiliWwwUrl, isPreventMobileRedirectEnabled } from '~/utils/bilibiliDesktopNavigation'
 
 import { isAppClientRequestUrl, setupAppClient } from './appClient'
@@ -164,6 +165,7 @@ if (isFirefoxBuild) {
 }
 
 // Setup all message listeners
+setupAntiJunk()
 setupSettingsStorageCoordinator()
 setupSettingsCloudSync()
 setupApiMsgListeners()

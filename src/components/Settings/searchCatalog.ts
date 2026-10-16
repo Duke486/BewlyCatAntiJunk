@@ -629,6 +629,17 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
     'settings.menu_bilibili',
   ], { targetTitleKey: 'settings.bilibili_features.video_playback' }),
   ...createEntries(commentsRoute, [
+    'anti_junk.title',
+    'anti_junk.enabled',
+    'anti_junk.inspect',
+    'anti_junk.metadata',
+    'anti_junk.clear_all',
+    'anti_junk.records',
+    'anti_junk.library_title',
+    'anti_junk.library_summarize',
+    'anti_junk.library_clear',
+    'anti_junk.batch_size',
+    'anti_junk.requests_per_second',
     'settings.bilibili_features.comments',
     'settings.group_comments',
     'settings.show_ip_location',
@@ -705,6 +716,9 @@ export const settingsSearchEntries: SettingsSearchEntry[] = [
 
   ...createEntries(aboutRoute, [
     'settings.menu_about',
+    'anti_junk.backup_title',
+    'anti_junk.backup_import',
+    'anti_junk.backup_export',
     'settings.group_settings_sync',
     'settings.enable_settings_sync',
     'settings.group_version_reminder',

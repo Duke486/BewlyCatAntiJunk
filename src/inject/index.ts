@@ -1,5 +1,6 @@
 // 由于是浏览器环境，所以引入的ts不能使用webextension-polyfill相关api，包含获取本地Storage，获取的是网页的localStorage
 import { isSearchResultApiPath } from '~/constants/searchApi'
+import { createNativeAntiJunk } from '~/features/antiJunk/native'
 import COMMENT_REPLY_TREE_GUIDES_CSS from '~/styles/commentReplyTree.scss?inline'
 import { BILIBILI_DESKTOP_USER_AGENT, isBilibiliWwwUrl } from '~/utils/bilibiliDesktopNavigation'
 import { isInBilibiliLiveContext } from '~/utils/bilibiliLive'
@@ -43,6 +44,11 @@ if (isElectronEnv) {
   console.warn('[BewlyCat] Detected Electron environment, extension disabled.')
 }
 else if (shouldInitializePageScript) {
+  const antiJunk = createNativeAntiJunk(getCommentReplyData, key => pageT(key), (renderer) => {
+    const replies = findCommentThreadRepliesRenderer(renderer)
+    if (replies)
+      scheduleCommentReplyTreeLayoutUpdate(replies)
+  })
   let localLoudness: ReturnType<typeof createLocalLoudnessController> | undefined
   if (typeof AudioContext !== 'undefined') {
     try {
@@ -4722,6 +4728,7 @@ else if (shouldInitializePageScript) {
               return
 
             ensureCommentShadowStyle(root, shadowStylePatch.id, shadowStylePatch.css)
+            antiJunk.observe(component)
             if (name === 'bili-comment-thread-renderer') {
               // 删除/屏蔽回复可能让楼层组件整体重绘，之前挂在其 shadow root
               // 内的 SVG 线条会随渲染结果一并被移除；重绘完成后从当前回复容器恢复。

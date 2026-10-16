@@ -3,6 +3,8 @@ import { useInfiniteScroll } from '@vueuse/core'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AntiJunkTools from '~/features/antiJunk/Tools.vue'
+import { useMomentAntiJunk } from '~/features/antiJunk/useMoment'
 import { settings } from '~/logic'
 import { useTopBarStore } from '~/stores/topBarStore'
 import { getCommentSexIcon } from '~/utils/commentUserInfo'
@@ -62,6 +64,8 @@ const groups = computed(() => state.comments.map(root => ({
   root,
   rows: getCommentRows(root, treeEnabled.value, treeMode.value),
 })))
+
+const { aiRevealed, aiBlocked, aiInspect, aiStatuses, aiDetails, aiEnabled, aiLayoutKey, aiAdding, addAiExample, toggleAiComment, retryAi } = useMomentAntiJunk(moment, state)
 
 const userId = computed(() => account.isLogin ? String(getUserID() || '') : '')
 const draftPrefix = computed(() => `${userId.value}:${moment.id}`)
@@ -181,6 +185,7 @@ onBeforeUnmount(() => clearTimeout(pendingDeleteTimer))
         :key="group.root.id"
         class="moment-comments__thread"
         :rows="group.rows"
+        :layout-key="aiLayoutKey"
         :enabled="treeEnabled && treeMode !== 'indentOnly'"
         @toggle="comment => comment.collapsed = !comment.collapsed"
       >
@@ -188,7 +193,7 @@ onBeforeUnmount(() => clearTimeout(pendingDeleteTimer))
           v-for="row in group.rows"
           :key="row.comment.id"
           class="moment-comments__comment"
-          :class="{ 'is-collapsed-body': row.hideBody }"
+          :class="{ 'is-collapsed-body': row.hideBody, 'is-ai-folded': !aiInspect && aiBlocked.has(row.comment.id) && !aiRevealed.has(row.comment.id), 'is-ai-inspect': aiInspect && aiBlocked.has(row.comment.id) }"
           :data-comment-id="row.comment.id"
           :style="{ '--comment-depth': Math.min(row.depth, 10) }"
         >
@@ -243,24 +248,41 @@ onBeforeUnmount(() => clearTimeout(pendingDeleteTimer))
             </header>
             <template v-if="!row.hideBody">
               <p class="moment-comments__content">
-                <template v-for="(part, index) in row.comment.content" :key="index">
-                  <img
-                    v-if="part.image" :src="part.image" :alt="part.text" :title="part.text" class="moment-comments__emoji"
-                    loading="lazy"
-                  >
-                  <a
-                    v-else-if="part.url"
-                    class="moment-comments__link"
-                    :href="part.url"
-                    :title="part.title"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >{{ part.text }}</a>
-                  <template v-else>
-                    {{ part.text }}
+                <AntiJunkTools
+                  v-if="aiEnabled" :inspect="aiInspect" :status="aiStatuses.get(row.comment.id)" :detail="aiDetails.get(row.comment.id)" :blocked="aiBlocked.has(row.comment.id)"
+                  :busy="aiAdding.has(row.comment.id)"
+                  @feedback="verdict => addAiExample(row.comment.id, verdict)" @retry="retryAi"
+                />
+                <span class="moment-comments__text">
+                  <template v-for="(part, index) in row.comment.content" :key="index">
+                    <img
+                      v-if="part.image" :src="part.image" :alt="part.text" :title="part.text" class="moment-comments__emoji"
+                      loading="lazy"
+                    >
+                    <a
+                      v-else-if="part.url"
+                      class="moment-comments__link"
+                      :href="part.url"
+                      :title="part.title"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >{{ part.text }}</a>
+                    <template v-else>
+                      {{ part.text }}
+                    </template>
                   </template>
-                </template>
+                </span>
               </p>
+              <button
+                v-if="!aiInspect && aiBlocked.has(row.comment.id)"
+                type="button"
+                class="anti-junk-toggle"
+                :title="t(aiRevealed.has(row.comment.id) ? 'anti_junk.hide_title' : 'anti_junk.show_title')"
+                :aria-expanded="aiRevealed.has(row.comment.id)"
+                @click="toggleAiComment(row.comment.id)"
+              >
+                {{ t(aiRevealed.has(row.comment.id) ? 'anti_junk.hide' : 'anti_junk.show') }}
+              </button>
               <div v-if="row.comment.pictures.length" class="moment-comments__pictures">
                 <button
                   v-for="(picture, index) in row.comment.pictures"
@@ -370,6 +392,8 @@ onBeforeUnmount(() => clearTimeout(pendingDeleteTimer))
 </template>
 
 <style scoped lang="scss">
+@use "../../features/antiJunk/moment";
+
 .moment-comments {
   display: flex;
   flex-direction: column;
@@ -529,7 +553,7 @@ onBeforeUnmount(() => clearTimeout(pendingDeleteTimer))
   padding-block: var(--bew-space-2);
 }
 
-.moment-comments button:not(.bew-segment-control__item) {
+.moment-comments button:not(.bew-segment-control__item):not(.anti-junk-toggle):not(.anti-junk-add) {
   display: inline-flex;
   min-width: 28px;
   min-height: 28px;
@@ -548,8 +572,8 @@ onBeforeUnmount(() => clearTimeout(pendingDeleteTimer))
   line-height: var(--bew-line-height-control);
 }
 
-.moment-comments button:not(.bew-segment-control__item):hover,
-.moment-comments button:not(.bew-segment-control__item):active {
+.moment-comments button:not(.bew-segment-control__item):not(.anti-junk-toggle):not(.anti-junk-add):hover,
+.moment-comments button:not(.bew-segment-control__item):not(.anti-junk-toggle):not(.anti-junk-add):active {
   color: var(--bew-theme-color);
   background: var(--bew-theme-color-10);
 }

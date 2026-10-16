@@ -7,6 +7,7 @@ import Button from '~/components/Button.vue'
 import Dialog from '~/components/Dialog.vue'
 import Radio from '~/components/Radio.vue'
 import { useSettingsCloudSyncPreference } from '~/composables/useSettingsCloudSyncPreference'
+import AntiJunkBackup from '~/features/antiJunk/Backup.vue'
 import { settings } from '~/logic'
 import { getBrowserInfo, parseBrowserInfo } from '~/utils/browserInfo'
 import { sendMessage } from '~/utils/messaging'
@@ -288,6 +289,7 @@ async function handleCopyEnvironmentInfo() {
           icon="i-mingcute:save-2-fill"
         />
         <Maintenance />
+        <AntiJunkBackup />
       </section>
 
       <section

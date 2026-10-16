@@ -1,3 +1,110 @@
+anti_junk:
+  rules:
+    normal: Normal discussion
+    flood: Flooding
+    offtopic: Off-topic
+    identity: Identity labeling
+    attack: Attack
+    showoff: Self-display
+    dismissal: Dismissing needs
+    mockery: Mockery
+    spam: Spam
+    feedback: Personal feedback
+    cached: Cached result
+  decision_detail: Rule {rule} · Pass {round} (0 means local result)
+  metrics: First pass {firstPass} · Second pass {secondPass} · Cache hits {cacheHits} · Requests {requests} · Errors {errors} · Queue total {queueMs} ms · Response total {requestMs} ms
+  status_reviewing: Reviewing with additional context
+  keep_example: Keep this comment
+  block_example: Block this comment
+  example_verdict: Example preference
+  retry: Retry failed checks
+  title: AI comment filter
+  description: 'Filter flooding, mockery, attacks and off-topic displays according to personal preferences, prioritizing fewer misses while preserving normal discussion.'
+  enabled: Enable AI comment filtering
+  scope: Check loaded comments in batches. Filtered comments can be expanded. Save to apply changes.
+  model: Model
+  key_note: 'The key stays in local extension storage, outside cloud sync. Comments, root/reply context, relevant labeled examples and guidance are sent to DeepSeek. Topic metadata also includes video information or post text when enabled.'
+  show_key: Show key
+  conceal_key: Hide key
+  save: Save
+  saved: Saved. Open pages will apply the changes automatically.
+  test: Test saved configuration
+  test_ok: Connection and output checks passed. First-post spam was correctly identified.
+  prompt: View system prompt
+  records: Filtered comment history
+  record_note: Local only. Keep up to 200 recent records within the storage limit. Clearing history keeps the verdict cache.
+  stats: 'Checked {checked}, filtered {blocked}, stored records {count}.'
+  search: Search comments, authors or page titles
+  refresh: Refresh
+  clear: Clear history
+  empty: No matching records.
+  parent: View parent context
+  show: Hidden
+  hide: Collapse
+  inspect: Inspection mode (debug)
+  inspect_desc: 'Highlight blocked comments. Status: ⚪️ queued, 🟡 first pass, 🟠 contextual review, 🟢 allowed, 🔴 blocked, ⚫️ error. Inspect category and pass; retry failed checks.'
+  show_title: Show original comment
+  hide_title: Collapse this comment
+  backup_title: AntiJunk backup
+  backup_desc: 'Back up settings, original examples, compressed guidance and history separately. Import merges history and replaces the included library. Old backups without examples or a key preserve local contents.'
+  backup_include_key: Include API Key in export
+  backup_key_note: 'Off by default. When enabled, the backup contains the key in plain text.'
+  backup_import: Import AntiJunk
+  backup_export: Export AntiJunk
+  backup_imported: AntiJunk imported. Open pages will update automatically.
+  backup_key_missing: Imported. Add an API key in AI comment filtering and enable it.
+  metadata: Include topic metadata
+  metadata_desc: 'Includes video metadata or post text and repost context. When disabled, neither pass fetches or sends topic metadata; comments and reply context remain available. Save to recheck.'
+  clear_all: Clear all history and caches
+  clear_all_note: 'Delete interception history, verdict and video metadata caches, reset statistics and errors, and cancel old detection requests. Keep your key, settings and personal examples. Current comments become visible; new comments or a refresh resume detection.'
+  cleared_all: All history and caches cleared. Statistics reset.
+  cleared_records: History cleared. Verdict cache retained.
+  status_queued: Not sent to AI (queued)
+  status_pending: Sent to AI; awaiting reply
+  status_approved: Approved by AI
+  status_rejected: Rejected by AI or a personal example
+  status_error: Detection failed; kept as fallback
+  add_example: Block this comment and add it to personal examples
+  example_added: Personal example preference saved
+  library_title: Personal blocked examples
+  library_desc: 'New examples retain text and context (up to 50 and 64 KB). Summarize combines existing guidance and new examples into a paragraph. Original examples are deleted only after a second AI review succeeds. Failures or concurrent changes preserve old contents. No broad brand, topic or opinion bans.'
+  example_text: Comment text to label
+  example_parent: Parent context (optional)
+  example_context: Video title or relevant context (optional)
+  library_add: Add example
+  library_summarize: Summarize and merge
+  library_remove: Delete example
+  library_saved: Examples updated.
+  library_summarized: Compression and review passed. Original examples were replaced with the guidance below.
+  library_stats: '{count} original examples pending compression; {length} characters of saved guidance.'
+  library_summary: 'Compressed examples, lessons and guidance'
+  library_summarizing: Compressing and reviewing…
+  library_summary_note: Guidance and relevant positive and negative examples are used as preference data. Edit and save directly; save empty text to remove guidance. Summarize merges existing guidance with new examples and deletes originals on success.
+  library_summary_save: Save guidance
+  library_clear: Clear all examples and guidance
+  batch_size: Comments per batch
+  batch_size_desc: '1–50 per batch, default 10. Long comments are also split by total character count. Save to apply without rechecking existing verdicts.'
+  requests_per_second: Maximum requests per second
+  requests_per_second_desc: '1–20, default 1. All model requests share the rolling rate limit and at most 3 concurrent requests. First pass takes priority; tabs take turns. Save changes.'
+  errors:
+    summary-too-broad: 'Review failed: guidance may overgeneralize or omit preferences. Original examples and guidance were preserved. Adjust examples and retry.'
+    invalid-limits: Batch size must be an integer from 1 to 50; requests per second from 1 to 20.
+    invalid-library: Invalid examples or context. Check text length.
+    library-full: Example library full (50 examples / 64 KB). Summarize to compress or delete some examples.
+    empty-library: Add examples first.
+    stale-library: Examples or settings changed. Compression was discarded and original contents preserved. Retry.
+    invalid-backup: Invalid or oversized AntiJunk backup. Original settings use a different format.
+    missing-key: Enter and save an API key first.
+    unauthorized: Invalid API key or access denied. Requests paused; fix and save settings to resume.
+    balance: Insufficient DeepSeek balance. Requests paused; top up and save settings to resume.
+    rate-limit: DeepSeek rate limit reached. Comments remain visible.
+    api-error: DeepSeek API error. Comments remain visible.
+    network: Network error or timeout. Comments remain visible.
+    invalid-format: Invalid output or out-of-range IDs. This batch was not applied.
+    storage-error: Cannot read or save local extension data.
+    cancelled: Configuration changed. Old requests were cancelled.
+    unexpected-verdict: Connected, but the test comment was not correctly classified.
+    busy: Detection queue is busy. Comments remain visible.
 common:
   view_all: View ALL
   play_all: Play ALL

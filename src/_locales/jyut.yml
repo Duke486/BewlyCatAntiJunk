@@ -1,3 +1,110 @@
+anti_junk:
+  rules:
+    normal: 正常交流
+    flood: 灌水
+    offtopic: 離題
+    identity: 身分標籤
+    attack: 攻擊
+    showoff: 自我展示
+    dismissal: 否定需求
+    mockery: 挖苦
+    spam: 廣告洗版
+    feedback: 個人回饋
+    cached: 快取結果
+  decision_detail: 規則 {rule} · 第 {round} 輪（0 表示本機結果）
+  metrics: 首輪 {firstPass} 則 · 二輪 {secondPass} 則 · 快取 {cacheHits} 次 · 請求 {requests} 次 · 錯誤 {errors} 次 · 累計排隊 {queueMs} ms · 累計回應 {requestMs} ms
+  status_reviewing: 補充語境後再判斷
+  keep_example: 呢則應保留
+  block_example: 呢則應封鎖
+  example_verdict: 案例偏好
+  retry: 重試失敗嘅判斷
+  title: AI 留言過濾
+  description: 依個人偏好過濾灌水、挖苦、攻擊與離題展示，優先減少漏判並保留正常交流。
+  enabled: 開啟 AI 留言過濾
+  scope: 逐條檢測已載入嘅留言，分批判斷；可以撳開睇原文。修改後請儲存。
+  model: 模型
+  key_note: 金鑰僅保存在本機擴充功能，不參與雲端同步。評論、根評論、回覆語境及相關正反案例與摘要會傳送至 DeepSeek；開啟中繼資料時亦傳送影片資訊或動態正文。
+  show_key: 顯示金鑰
+  conceal_key: 隱藏金鑰
+  save: 儲存
+  saved: 已儲存，開緊嘅頁面會自動套用。
+  test: 測試已儲存嘅設定
+  test_ok: 連線同格式檢查通過，搶樓留言已正確辨識。
+  prompt: 睇系統提示詞
+  records: 留言攔截紀錄
+  record_note: 只存喺本機，最多保留最近 200 筆，容量超限會移除舊紀錄。清空紀錄唔會清除判斷快取。
+  stats: '累計檢測 {checked} 筆，攔截 {blocked} 筆，保留紀錄 {count} 筆。'
+  search: 搜尋留言、作者或者頁面標題
+  refresh: 重新整理
+  clear: 清空紀錄
+  empty: 暫時冇符合嘅攔截紀錄。
+  parent: 睇父留言語境
+  show: 已隱藏
+  hide: 收起
+  inspect: 檢視模式（開發除錯）
+  inspect_desc: 命中評論保留正文並標黃。狀態：⚪️排隊、🟡首輪等待、🟠補充語境複判、🟢保留、🔴拒絕、⚫️出錯。可查看判斷類別及輪次，失敗可重試。
+  show_title: 撳嚟睇原留言
+  hide_title: 收起呢則留言
+  backup_title: AntiJunk 獨立備份
+  backup_desc: 獨立備份設定、原案例、壓縮指導和攔截紀錄。匯入合併紀錄並取代備份中的案例庫；舊備份未附案例庫或金鑰時保留本機內容。
+  backup_include_key: 匯出時包含 API Key
+  backup_key_note: 預設關閉；開啟後金鑰會以明文寫入備份。
+  backup_import: 匯入 AntiJunk
+  backup_export: 匯出 AntiJunk
+  backup_imported: AntiJunk 已匯入，開緊嘅頁面會自動套用。
+  backup_key_missing: 已匯入；備份冇金鑰，請喺 AI 留言過濾填金鑰並啟用。
+  metadata: 注入主題中繼資料
+  metadata_desc: 預設開啟，提供影片資訊或動態正文與轉發語境。關閉後兩輪均不查詢或傳送主題資料，僅使用評論、根評論與回覆語境。儲存後重新檢測。
+  clear_all: 徹底清空紀錄同快取
+  clear_all_note: 徹底清空會刪除所有攔截紀錄、判斷與影片中繼資料快取，重設統計和錯誤狀態，取消舊檢測請求。保留金鑰、設定和個人案例庫；目前留言恢復顯示，新留言或重新整理頁面後繼續檢測。
+  cleared_all: 紀錄同快取已徹底清空，統計已重設。
+  cleared_records: 攔截紀錄已清空，判斷快取保留。
+  status_queued: 尚未傳送至 AI（排隊中）
+  status_pending: 已傳送至 AI，等待回覆
+  status_approved: AI 已批准保留
+  status_rejected: 已拒絕（AI 或個人案例）
+  status_error: 檢測出錯，回退為保留
+  add_example: 封鎖呢則留言並加入個人案例庫
+  example_added: 已儲存個人案例偏好
+  library_title: 個人封鎖案例庫
+  library_desc: 新增案例保留原文和語境（最多 50 則、總量 64 KB）。一鍵總結會整合既有指導與新案例，產生一段語義指導，經第二次 AI 複核後刪除原案例。失敗或內容變更時保留原內容；禁止擴大成品牌、話題或立場禁令。
+  example_text: 需要標記偏好的評論原文
+  example_parent: 父留言語境（選填）
+  example_context: 影片標題或適用語境（選填）
+  library_add: 新增案例
+  library_summarize: 一鍵總結合併
+  library_remove: 刪除案例
+  library_saved: 案例庫已更新。
+  library_summarized: 語義壓縮與複核已通過，原案例已替換為下方指導。
+  library_stats: '待壓縮原案例 {count} 則，已儲存指導 {length} 字元。'
+  library_summary: 壓縮後的案例、教訓與指導
+  library_summarizing: 正在壓縮並複核…
+  library_summary_note: 指導和相關正反案例會作為偏好資料參與判斷。可直接編輯並儲存；清空文字後儲存可刪除指導。再次總結會整合既有指導與新案例，成功後刪除原案例。
+  library_summary_save: 儲存指導
+  library_clear: 一鍵清空案例與指導
+  batch_size: 每組留言數量
+  batch_size_desc: 每批最多 1–50 則，預設 10；過長留言仍按總字元數拆分。修改後儲存，不會重檢既有判斷。
+  requests_per_second: 每秒最大請求數量
+  requests_per_second_desc: 1–20 次，預設 1。所有模型請求共享一秒限額及最多 3 路並行；首輪優先，依分頁輪流處理。修改後儲存。
+  errors:
+    summary-too-broad: 複核未通過：指導可能泛化或遺漏。原案例與舊指導均保留，請修改案例後重試。
+    invalid-limits: 每組留言須為 1–50 的整數，每秒請求須為 1–20 的整數。
+    invalid-library: 案例庫資料無效，請檢查原文長度及語境。
+    library-full: 案例庫已滿（最多 50 則、總量 64 KB），請先總結壓縮或刪除部分案例。
+    empty-library: 請先新增案例。
+    stale-library: 案例或設定已變更，舊壓縮結果未套用，原內容保留，請重試。
+    invalid-backup: 唔係有效嘅 AntiJunk 備份，或者檔案太大。原版設定唔接受呢種格式。
+    missing-key: 請先填寫同儲存 API Key。
+    unauthorized: API Key 無效或無存取權限，已暫停請求；修正後儲存設定恢復。
+    balance: DeepSeek 餘額不足，已暫停請求；儲值後儲存設定恢復。
+    rate-limit: DeepSeek 請求太頻密，留言保持顯示。
+    api-error: DeepSeek 回傳錯誤，留言保持顯示。
+    network: 網絡錯誤或者逾時，留言保持顯示。
+    invalid-format: AI 格式錯誤或者編號超出範圍，冇套用呢批判斷。
+    storage-error: 無法讀取或者儲存本機資料。
+    cancelled: 設定改咗，已取消舊判斷。
+    unexpected-verdict: 連到線，但冇正確辨識測試留言。
+    busy: 檢測佇列忙碌，留言保持顯示。
 common:
   view_all: 睇晒佢哋
   play_all: 播晒佢哋

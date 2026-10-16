@@ -38,6 +38,7 @@ export async function getManifest() {
     },
     permissions: [
       'storage',
+      'downloads',
       'declarativeNetRequest',
       'cookies',
       ...(!isSafari ? ['scripting'] : []),
@@ -46,6 +47,7 @@ export async function getManifest() {
         : [],
     ],
     host_permissions: [
+      'https://api.deepseek.com/*',
       '*://*.bilibili.com/*',
       '*://*.hdslb.com/*',
     ],

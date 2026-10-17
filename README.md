@@ -4,6 +4,12 @@
 
 BewlyCat 基于 [BewlyBewly](https://github.com/BewlyBewly/BewlyBewly) 开发。本项目沿用两者的代码与功能，主要新增反垃圾评论过滤，由个人独立维护，不代表上游官方版本。
 
+## 下载与安装
+
+前往 [GitHub Releases](https://github.com/Duke486/BewlyCatAntiJunk/releases/latest) 下载发布的安装包。Chrome / Edge 选择 `chrome-edge.zip`，解压后通过扩展管理页的「加载已解压的扩展程序」安装。Firefox 包为未签名测试构建。
+
+详细步骤见 [安装说明](docs/RELEASE-NOTES.md)；维护者构建与发布流程见 [社区发布指南](docs/RELEASING.md)。
+
 ## AI 评论过滤
 
 支持原生评论、楼中楼及动态评论，使用 DeepSeek V4.1 Flash（`deepseek-flash`）。

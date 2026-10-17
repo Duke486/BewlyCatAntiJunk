@@ -13,7 +13,7 @@
     "@iconify/json",
     "uno.css"
   ],
-  "ignoreBinaries": ["gh", "xcrun"],
+  "ignoreBinaries": ["xcrun"],
   "rules": {
     "types": "off",
     "enumMembers": "off",

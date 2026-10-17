@@ -16,6 +16,7 @@
 *.zip
 dist
 dist-ssr
+release-assets/
 extension/
 extension-firefox/
 extension-safari/

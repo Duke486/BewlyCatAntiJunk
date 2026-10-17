@@ -94,6 +94,7 @@ async function downloadContributorsImage() {
 async function prepare() {
   fs.ensureDirSync(r(extensionDirectory))
   fs.copySync(r('assets'), r(extensionDirectory, 'assets'))
+  fs.copyFileSync(r('LICENSE'), r(extensionDirectory, 'LICENSE'))
   await downloadContributorsImage()
   writeManifest()
 

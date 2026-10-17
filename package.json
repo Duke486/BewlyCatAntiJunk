@@ -1,13 +1,15 @@
 {
   "name": "bewly-cat",
-  "displayName": "BewlyCat",
+  "displayName": "BewlyCatAntiJunk",
   "type": "module",
   "version": "1.8.1",
   "private": true,
   "packageManager": "pnpm@11.17.0",
   "description": "Just make a few small changes to your Bilibili homepage.",
-  "homepage": "https://github.com/keleus/BewlyCat",
+  "homepage": "https://github.com/Duke486/BewlyCatAntiJunk",
   "scripts": {
+    "release:version": "release-it",
+    "release:build": "pnpm build && pnpm build-firefox && pnpm pack:zip && pnpm pack:zip-firefox && esno scripts/release.ts",
     "build-pack": "pnpm build && pnpm build-firefox && pnpm pack:zip && pnpm pack:zip-firefox && pnpm pack:zip-firefox-sources",
     "dev": "pnpm run clear && cross-env NODE_ENV=development run-p --npm-path pnpm dev:*",
     "dev-firefox": "pnpm run clear-firefox && cross-env NODE_ENV=development FIREFOX=true run-p --npm-path pnpm dev:*",

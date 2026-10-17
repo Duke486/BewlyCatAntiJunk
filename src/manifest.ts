@@ -112,7 +112,7 @@ export async function getManifest() {
   if (isFirefox) {
     manifest.browser_specific_settings = {
       gecko: {
-        id: 'addon@celeus.cn',
+        id: 'bewlycat-antijunk@duke486.github.io',
       },
     }
   }

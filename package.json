@@ -2,7 +2,7 @@
   "name": "bewly-cat",
   "displayName": "BewlyCatAntiJunk",
   "type": "module",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "private": true,
   "packageManager": "pnpm@11.17.0",
   "description": "Just make a few small changes to your Bilibili homepage.",

@@ -392,7 +392,7 @@ async function handleCopyEnvironmentInfo() {
             >
           </a>
         </section>
-        <section w-full>
+        <section w-full data-settings-key="settings.open_source_license" :data-settings-title="$t('settings.open_source_license')">
           <h3 class="title">
             {{ $t('settings.open_source_license') }}
           </h3>
@@ -410,7 +410,7 @@ async function handleCopyEnvironmentInfo() {
               ({{ $t('settings.original_project') }})
             </li>
           </ul>
-          <div flex="~ gap-2 wrap">
+          <div class="license-actions">
             <Button type="secondary" size="small" @click="showLicenseDialog = true">
               <template #left>
                 <div i-tabler:license />
@@ -563,6 +563,13 @@ async function handleCopyEnvironmentInfo() {
   a {
     color: var(--bew-theme-color);
   }
+}
+
+.license-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bew-space-3);
+  align-items: center;
 }
 
 .license-text {

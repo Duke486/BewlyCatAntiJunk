@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import Radio from '~/components/Radio.vue'
 import Select from '~/components/Select.vue'
 import Slider from '~/components/Slider.vue'
-import AntiJunk from '~/features/antiJunk/Settings.vue'
 import { settings } from '~/logic'
 import type { CommentReplyPaginationMode, CommentReplyTreeMode } from '~/logic/storage'
 import { COMMENT_REPLY_TREE_CONTAINER_MAX_HEIGHT, COMMENT_REPLY_TREE_CONTAINER_MIN_HEIGHT } from '~/logic/storage'
@@ -61,7 +60,6 @@ const commentReplyPaginationModeOptions = computed<{ label: string, value: Comme
 </script>
 
 <template>
-  <AntiJunk />
   <SettingsItemGroup :title="$t('settings.group_comments')">
     <div class="comment-setting-tags" role="group" :aria-label="$t('settings.group_comments')">
       <SettingsToggleTag
@@ -150,6 +148,14 @@ const commentReplyPaginationModeOptions = computed<{ label: string, value: Comme
       right-width="auto"
     >
       <Radio v-model="settings.hideCommentImageScrollbar" />
+    </SettingsItem>
+
+    <SettingsItem
+      :title="$t('settings.image_viewer_close_at_bottom')"
+      :desc="$t('settings.image_viewer_close_at_bottom_desc')"
+      right-width="auto"
+    >
+      <Radio v-model="settings.imageViewerCloseAtBottom" />
     </SettingsItem>
   </SettingsItemGroup>
 </template>

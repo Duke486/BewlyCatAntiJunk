@@ -13,6 +13,7 @@ import { setupLoginStateWatcher } from './loginStateWatcher'
 import { setupApiMsgListeners } from './messageListeners/api'
 import { setupTabMsgListeners } from './messageListeners/tabs'
 import { setupSettingsCloudSync } from './settingsCloudSync'
+import { setupSettingsPage } from './settingsPage'
 import { setupSettingsStorageCoordinator } from './settingsStorageCoordinator'
 import { setupTopBarStateBroker } from './topBarStateBroker'
 import { setupWatchLaterStateBroker } from './watchLaterStateBroker'
@@ -182,6 +183,7 @@ if (isFirefoxBuild) {
 
 // Setup all message listeners
 setupAntiJunk()
+setupSettingsPage()
 setupSettingsStorageCoordinator()
 setupSettingsCloudSync()
 setupExtensionCacheStore()

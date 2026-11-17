@@ -11,7 +11,6 @@ import Ambilight from './BilibiliFeaturesEnhancement/Ambilight/Ambilight.vue'
 import AutoPlay from './BilibiliFeaturesEnhancement/AutoPlay/AutoPlay.vue'
 import Comments from './BilibiliFeaturesEnhancement/Comments/Comments.vue'
 import FavoriteOrganizer from './BilibiliFeaturesEnhancement/FavoriteOrganizer/Favorites.vue'
-import ListenVideo from './BilibiliFeaturesEnhancement/ListenVideo/ListenVideo.vue'
 import OriginalMoments from './BilibiliFeaturesEnhancement/OriginalMoments/OriginalMoments.vue'
 import VideoPlayback from './BilibiliFeaturesEnhancement/VideoPlayback/VideoPlayback.vue'
 import VipFeatures from './BilibiliFeaturesEnhancement/VipFeatures/VipFeatures.vue'
@@ -55,11 +54,11 @@ export interface SettingsMenuDefinition extends MenuItem {
 const isBewlyPagesEnabled = () => !settings.value.useOriginalBilibiliHomepage
 const isTopBarModuleEnabled = () => settings.value.enableTopBarModule
 const isBewlyTopBarEnabled = () => shouldShowBewlyTopBar(settings.value.enableTopBarModule, settings.value.enableTopBar, settings.value.useOriginalBilibiliTopBar)
-const isDockOrSideBarEnabled = () => settings.value.enableDock || settings.value.enableSideBar
+const isDockModuleEnabled = () => settings.value.enableDock
 const isPlayerEnabled = () => settings.value.enablePlayerEnhancements
 const isCommentsEnabled = () => settings.value.enableCommentEnhancements
 
-// 设置页只存在于独立页面中，组件都已打进同一个文件，同步引入可以避免切换时出现空白帧。
+// 独立设置页与页面内设置浮层共用这份菜单定义；组件同步引入，切换时不会出现空白帧。
 export const settingsMenus: SettingsMenuDefinition[] = [
   {
     value: MenuType.General,
@@ -136,7 +135,7 @@ export const settingsMenus: SettingsMenuDefinition[] = [
         icon: 'i-mingcute:navigation-line',
         iconActivated: 'i-mingcute:navigation-fill',
         component: DockAndSidebar,
-        available: isDockOrSideBarEnabled,
+        available: isDockModuleEnabled,
       },
       {
         value: 'interaction',
@@ -167,16 +166,6 @@ export const settingsMenus: SettingsMenuDefinition[] = [
         icon: 'i-mingcute:play-circle-line',
         iconActivated: 'i-mingcute:play-circle-fill',
         component: VideoPlayback,
-        available: isPlayerEnabled,
-      },
-      {
-        value: 'listen-video',
-        groupKey: 'settings.category_group_playback',
-        titleKey: 'settings.bilibili_features.listen_video',
-        descriptionKey: 'settings.category_bilibili_listen_video_desc',
-        icon: 'i-mingcute:headphone-line',
-        iconActivated: 'i-mingcute:headphone-fill',
-        component: ListenVideo,
         available: isPlayerEnabled,
       },
       {

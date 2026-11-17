@@ -178,7 +178,7 @@ common:
     bottom: 下低
 layout_editor:
   finish: 完成
-  edit_dock: 編輯 Dock
+  edit_dock: 編輯模式
   edit_sidebar: 編輯模式
   back_to_top: 返到最頂
   click_to_adjust: 撳你想調整嘅元素
@@ -225,10 +225,6 @@ player_screenshot:
   saved: 截圖已儲存
   failed: 截圖失敗
   video_unavailable: 而家嘅影片畫面用唔到
-player_listen:
-  enter: 聽影片
-  exit: 還原影片畫面
-  listening: 而家聽緊
 settings:
   ambilight:
     title: 影片環境光
@@ -268,14 +264,14 @@ settings:
     fps_30: 30 fps · 流暢
   local_loudness:
     gain_history: 均衡增益變化 · 近 60 秒
-    summary: 平衡唔同影片之間嘅音量，減少切換影片時嘅大小聲差異。
+    summary: 平衡唔同影片之間嘅響度，同時平滑同一個影片內嘅大小聲。
     title: 音量均衡
     enable: 啟用局部音量均衡
-    description: 平衡唔同影片之間嘅音量，減少切換影片時嘅大小聲差異。啟用後會關閉 B 站原生均衡（關閉呢個功能後唔會自動恢復），最多提升 6 dB。
+    description: 平衡唔同影片之間嘅響度，並喺播放期間即時調整增益，所以同一個影片內嘅大小聲都會被平滑；強度越高，對原有動態嘅影響越大。啟用後會關閉 B 站原生均衡（關閉呢個功能後唔會自動恢復），最多提升 6 dB。
     target: 目標響度
     target_desc: 建議由 -18 LUFS 開始。數值越低越靜；播放器音量仍然可以獨立調整。
     strength: 均衡強度
-    strength_desc: 強度越高，大小聲差異越細，亦會更多改變音樂同電影嘅動態。
+    strength_desc: 強度越高，影片之間同影片內嘅大小聲差異越細，亦會更多改變音樂同電影嘅動態。
     status: 運行狀態
     states:
       off: 已關閉
@@ -308,6 +304,7 @@ settings:
   following_sort_updated: 按更新時間
   following_sort_group: 按分組
   title: 設定
+  open_in_new_tab: 喺新分頁開啟設定
   menu_general: 一般
   menu_bewly_pages: Bewly 頁面
   menu_bewly_components: Bewly 元件
@@ -329,6 +326,8 @@ settings:
     placeholder: 搜尋設定
     no_results: 搵唔到相關設定
     located: 已定位到呢個設定
+    results_title: 搵嘢結果
+    results_count: 搵到 {count} 個設定
   category_general_desc: 設定語言同互動方式，並按需要開啟外掛嘅各個部分，可以淨係保留評論、大會員等單項功能。
   category_appearance_desc: 設定毛玻璃、主題顏色、桌布、字型、自訂樣式同其他頁面嘅適配。
   category_shortcuts_desc: 啟用、修改或者還原 BewlyCat 同播放器快捷鍵。
@@ -341,7 +340,7 @@ settings:
   module_top_bar: 頂欄
   module_top_bar_desc: 外掛提供嘅頂欄同原版頂欄託管。閂咗之後外掛唔會再隱藏或者改動任何頂欄，頁面顯示 B 站自己嘅頂欄；Bewly 首頁成頁由外掛接管，唔顯示頂欄。
   module_dock: Dock 欄
-  module_dock_desc: 頁面切換導覽。Bewly 頁面閂咗嘅時候，撳落直接跳去 B 站原站頁面。
+  module_dock_desc: 頁面切換導覽同懸浮側欄。Bewly 頁面開緊嗰陣需要保持開啟；Bewly 頁面閂咗嘅時候撳落直接跳去 B 站原站頁面，閂咗呢個模組之後可以喺瀏覽器工具列圖示開啟設定。
   module_sidebar: 懸浮側欄
   module_sidebar_desc: 提供主題切換同設定入口，Dock 顯示時唔會顯示。閂咗之後可以喺瀏覽器工具列圖示開啟設定。
   group_modules_enhancements: 功能增強
@@ -349,7 +348,7 @@ settings:
   module_comments: 評論增強
   module_comments_desc: 回覆樹、IP 屬地、性別、樓主標識同評論圖片最佳化。
   module_player: 播放器增強
-  module_player_desc: 顯示模式、播放器掣、聽影片、音量均衡、環境光同連播控制。重新整理頁面後生效。
+  module_player_desc: 顯示模式、播放器掣、音量均衡、環境光同連播控制。重新整理頁面後生效。
   module_shortcuts: 鍵盤快捷鍵
   module_shortcuts_desc: 外掛提供嘅播放器同主頁快捷鍵。
   category_bilibili_moments_desc: 調整原版動態頁嘅模組同評論行為，並過濾動態。
@@ -367,8 +366,7 @@ settings:
   category_playback_autoplay_desc: 設定自動連播同自訂播放行為。
   category_bilibili_comments_desc: 加強留言區嘅用戶資料同內容顯示。
   category_bilibili_vip_desc: 設定大會員權益相關嘅提醒功能。
-  category_bilibili_listen_video_desc: 隱藏影片畫面淨係保留聲音，用封面同標題組成音訊播放介面。
-  category_bilibili_volume_balance_desc: 喺本機平衡唔同影片嘅響度，減少音量忽大忽細。
+  category_bilibili_volume_balance_desc: 喺本機平衡唔同影片嘅響度，並平滑影片內嘅大小聲。
   category_bilibili_ambilight_desc: 喺播放器四周投射跟住畫面變化嘅柔和環境光。
   category_advanced_compatibility_desc: 攔截廣告、淨化連結，同埋設定原版頁面同其他頁面嘅相容行為。
   category_advanced_maintenance_desc: 匯出備份、匯入設定或者還原 BewlyCat 預設配置。
@@ -424,7 +422,6 @@ settings:
     auto_play: 播放行為
     vip_features: 大會員
     vip_features_placeholder: 大會員功能增強將喺未來版本加入。
-    listen_video: 聽影片
     volume_balance: 音量均衡
     ambilight: 影片環境光
 
@@ -620,11 +617,6 @@ settings:
   moments_video_card_open_mode_desc: 獨立控制影片投稿動態卡片嘅打開位置；揀「跟隨動態卡片」時使用上面嘅設定。
   moments_video_card_open_mode_opt:
     inherit: 跟隨動態卡片
-  group_moments_wanted_users: 想睇分組
-  group_moments_wanted_users_desc: 管理想睇嘅 UP 主；支援輸入 UID 或暱稱，名單只會儲存喺本機。
-  moments_enable_wanted_filter: 顯示「想睇」按鈕
-  moments_enable_wanted_filter_desc: 喺動態頁橫向欄顯示「想睇」按鈕，用嚟淨係睇名單內 UP 主嘅動態。
-  moments_wanted_users: 想睇嘅 UP 主
   group_moments_pinned_users: 固定 UP 主
   group_moments_pinned_users_desc: 管理固定喺動態欄右側嘅 UP 主；支援輸入 UID 或暱稱，名單只會儲存喺本機。
   moments_pinned_users: 固定嘅 UP 主
@@ -725,12 +717,6 @@ settings:
   video_card_author_font_size_desc: 控制影片卡片上 UP 主名稱嘅字體大小。
   video_card_meta_font_size: 標籤同時間字體大小
   video_card_meta_font_size_desc: 控制標題下方標籤同時間資訊嘅字體大小。
-  video_card_shadow_curve: 陰影漸變曲線
-  video_card_shadow_curve_desc: 自訂影片卡片底部陰影嘅漸變效果
-  video_card_shadow_curve_hint: 拖曳線條建立控制點，右鍵刪除
-  video_card_shadow_height: 陰影高度
-  video_card_shadow_height_desc: 調整陰影覆蓋封面嘅高度比例
-  video_card_shadow_reset: 重設陰影設定
   video_card_layout: 影片卡片版面
   video_card_layout_desc: 喺新版同舊版嘅影片卡片樣式之間切換。
   video_card_layout_option:
@@ -1034,7 +1020,7 @@ settings:
     title_keyword_placeholder: 輸入關鍵字之後按 Enter，唔分大細階
     triple_synced: 已經同步去收藏夾：{folders}
     triple_sync_failed: 三連之後同步收藏夾失敗
-  wanted_users:
+  up_picker:
     no_results: 搵唔到相關 UP 主，試下其他暱稱
     search_failed: 搜尋 UP 主失敗，請遲啲再試
     invalid_uid: 請輸入有效嘅 UP 主 UID
@@ -1043,19 +1029,12 @@ settings:
     info_failed: 攞唔到 UP 主資料，請遲啲再試
     placeholder: 輸入 UP 主 UID 或暱稱
     pinned_already: 呢位 UP 主已經固定咗
-    wanted_already: 呢位 UP 主已經喺「想睇」分組
     pinned_need_follow: 要先關注 {name}，先可以固定佢
-    wanted_need_follow: 要先關注 {name}，先可以加佢入「想睇」
     pinned_added: 已經將 {name} 固定到動態欄
-    wanted_added: 已經將 {name} 加入「想睇」
     pinned_removed: 已經取消固定 {name}
-    wanted_removed: 已經將 {name} 移出「想睇」
     remove_pinned: 取消固定 {name}
-    remove_wanted: 將 {name} 移出想睇
     remove_pinned_title: 取消固定
-    remove_wanted_title: 移出想睇
     pinned_empty: 仲未固定 UP 主。加咗之後會顯示喺動態欄右邊。
-    wanted_empty: 仲未加 UP 主。加咗之後可以喺 Bewly 動態頁用「想睇」篩選。
   authorization_success: 授權成功
   filter_by_title: 根據標題篩選
   filter_by_title_desc: >
@@ -1119,6 +1098,10 @@ settings:
   adapt_to_other_page_styles_desc: 執執啲常用嘅版面，襯返 BewlyBewly 主題風格。
   disable_background: 閂咗背景
   disable_background_desc: 徹底閂咗插件版面嘅純色背景、漸層背景同埋桌布（包括搜尋頁桌布），顯示返 B 站原本版面嘅背景。
+  video_page_glass_style: 影片頁玻璃風格
+  video_page_glass_style_desc: 喺影片同番劇播放頁（包括 Bewly 闊熒幕）顯示背景，成頁鋪一層毛玻璃等內容直接融落去。桌布、遮罩、漸層同模糊強度跟返外觀設定，唔包括課程頁。
+  rounded_video_player: 影片播放器圓角
+  rounded_video_player_desc: 幫影片同番劇頁嘅播放器加圓角，全熒幕、網頁全熒幕同細視窗就維持返直角。
   prevent_mobile_redirect: 防止跳轉去流動版
   prevent_mobile_redirect_desc: 開啟之後，避免進入 www.bilibili.com 時跳轉去流動版頁面。
   enable_firefox_scrollbar_repaint: Firefox 捲軸重繪
@@ -1234,8 +1217,6 @@ settings:
     caption_desc: 顯示/隱藏字幕。
     video_screenshot: 影片截圖
     video_screenshot_desc: 將目前影片畫面儲存成 PNG 圖片，關咗播放器截圖按鈕之後仍然用得。
-    listen_video: 聽影片
-    listen_video_desc: 切換聽影片模式，收埋畫面淨係留低聲音。
     clock_time: 時鐘
     clock_time_desc: 顯示/隱藏系統時間。
     danmu_status: 顯示彈幕狀態
@@ -1405,36 +1386,12 @@ settings:
   enlarge_favorite_dialog_desc: 啓用後，影片頁收藏彈窗會用更大嘅尺寸顯示，方便睇同管理收藏夾。
   external_watch_later_button: 稍後再睇按鈕外置
   external_watch_later_button_desc: 啓用後，影片頁工具欄會顯示獨立嘅陣間至睇按鈕；按鈕會顯示目前影片狀態，可以撳一下加入或者剷走。
-  show_vertical_video_zoom_button: 直屏影片放大按鈕
-  show_vertical_video_zoom_button_desc: 喺直屏影片播放器顯示放大/縮小按鈕同畫面位置調整控制
   show_bewly_widescreen_button: 顯示播放器 Bewly 闊螢幕按鈕
   show_bewly_widescreen_button_desc: 啓用後，喺影片播放器控制欄顯示 Bewly 闊螢幕按鈕。
   show_video_screenshot_button: 顯示播放器截圖按鈕
   show_video_screenshot_button_desc: 喺播放器控制欄顯示截圖按鈕。閂咗之後仍然可以用快捷鍵截圖。
   show_video_pip_button: 顯示播放器子母畫面按鈕
   show_video_pip_button_desc: 喺播放器控制欄顯示子母畫面按鈕。閂咗之後仍然可以用快捷鍵切換。
-  enable_listen_video: 啓用聽影片功能
-  enable_listen_video_desc: 開咗之後可以用播放器按鈕或者快捷鍵聽影片。只係收埋畫面，影片串流仍然會照常載入。
-  show_listen_video_button: 顯示播放器「聽影片」按鈕
-  show_listen_video_button_desc: 喺播放器控制欄顯示聽影片按鈕。閂咗之後仍然可以用快捷鍵切換。
-  listen_video_cover_shape: 聽影片封面樣式
-  listen_video_cover_shape_desc: 圓形唱片會跟住播放轉，正方形同長方形唔轉。
-  listen_video_cover_shape_circle: 圓形唱片
-  listen_video_cover_shape_square: 正方形
-  listen_video_cover_shape_rectangle: 長方形
-  listen_video_glow: 聽影片封面光暈
-  listen_video_glow_desc: 封面後面加層光暈；呼吸模式會跟住播放輕輕郁，暫停就一齊停。
-  listen_video_glow_none: 唔要
-  listen_video_glow_static: 常亮
-  listen_video_glow_breathe: 呼吸
-  listen_video_glow_color: 聽影片光暈顏色
-  listen_video_glow_color_desc: 跟封面會攞封面主色做光暈色，攞唔到色就用主題色。
-  listen_video_glow_color_theme: 主題色
-  listen_video_glow_color_cover: 跟封面
-  listen_video_background: 聽影片背景樣式
-  listen_video_background_desc: 封面模糊會將而家個封面高斯模糊之後鋪滿成個背景，純色就係深色底。
-  listen_video_background_solid: 純色
-  listen_video_background_blur: 封面模糊
   group_fonts: 字體
   group_visual_effects: 視覺效果
   group_search_results: 搜尋結果
@@ -1669,6 +1626,18 @@ home:
   immersive_previous: 上一個
   immersive_next: 下一個
   recommendations_retry: 首頁推薦介面連續請求失敗，請重新整理再試
+  recommendation_failed: 首頁推薦載入失敗：{reason}
+  app_recommendation_failed: App 推薦資料載入失敗：{reason}
+  recommendation_failure_reason:
+    background: 擴充功能背景連線斷咗，請重新整理頁面；仲係失敗就去擴充功能管理頁重新啟用 BewlyCat
+    offline: 網絡斷咗，請恢復連線之後重新整理再試
+    timeout: 請求逾時，可能係網絡慢，或者代理、IPv6 線路有問題，請檢查網絡之後重新整理再試
+    network: 連唔到 B 站伺服器，請檢查網絡同代理設定，並確認廣告攔截等擴充功能冇攔截 B 站介面
+    http: B 站伺服器回傳 HTTP {status}，服務可能暫時有問題，請遲啲重新整理再試
+    invalid_response: 回傳內容解析唔到，可能俾代理、閘道或者網絡環境改寫咗，請檢查網絡環境之後再試
+    api: 介面回傳錯誤（{detail}），請遲啲重新整理再試
+    empty: 介面連續回傳空列表，B 站可能暫時限制咗推薦，請遲啲再試
+    risk_control: 請求觸發咗 B 站風控，請減低重新整理頻率並遲啲再試
   weekly_issue: 第{number}期
   select_issue: 揀期號
   search_issue: 搜尋期號…
@@ -1772,6 +1741,7 @@ favorites:
   unfav_seasons_failed: '{count} 個合集取消收藏失敗'
   search_all_folders: 全部
   search_current_folder: 目前
+  clear_search: 清空搜尋
   search_placeholder: 搜尋目前收藏夾
 version_reminder:
   trigger: 新版本說明
@@ -1905,6 +1875,7 @@ moments:
   filter_article: 專欄
   last_seen: 上次睇到呢度
   newer_above: 上面仲有更新嘅動態
+  released_above: 上面部分動態已釋放
   jump_to_latest: 返去最新
   jump_to_last_seen: 跳去上次睇到嘅位置
   emoji: 表情
@@ -1964,19 +1935,12 @@ moments:
   live_now: 直播緊
   group_label: 動態分組
   all_posts: 全部動態
-  wanted_only: 只睇想睇嘅 UP 主
-  cancel_wanted_only: 唔再只睇想睇嘅 UP 主
-  wanted_scope_hint: 只適用於全部同影片投稿
-  wanted: 想睇
   scroll_left: 向左捲動經常瀏覽列表
   scroll_right: 向右捲動經常瀏覽列表
   frequent_uploaders: 經常瀏覽嘅 UP 主
   has_updates: 有更新
   pin_uploader: 固定 UP 主
-  no_recent_updates: 最近冇更新
-  add_wanted_first: 請先喺設定加入想睇嘅 UP 主
   empty: 暫時冇可以顯示嘅動態
-  recheck: 再檢查
   reload: 重新載入
   loading_more: 載入緊並準備更多動態…
   new_tab: 喺新分頁開啟
@@ -2144,10 +2108,6 @@ player_state:
   volume: '音量 {volume}%'
   on: 開
   off: 關
-vertical_video:
-  zoom_in: 放大
-  zoom_out: 縮小
-  adjust_area: 調整直屏影片放大區域
 favorite_dialog:
   clear_selected: 清走已揀
   folder_full: 呢個收藏夾已經滿咗，加唔到

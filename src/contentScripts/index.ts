@@ -3,6 +3,7 @@ import 'uno.css'
 
 import { createApp } from 'vue'
 
+import components from '~/components'
 import { startIframeThemeListener, useDark } from '~/composables/useDark'
 import { CONTENT_SCRIPT_COMMIT, CONTENT_SCRIPT_PING, CONTENT_SCRIPT_PONG } from '~/constants/contentScript'
 import { BEWLY_IFRAME_DRAWER_HOST_CLASS, BEWLY_MOUNTED, IFRAME_DARK_MODE_CHANGE, IFRAME_TOP_BAR_CHANGE } from '~/constants/globalEvents'
@@ -24,6 +25,7 @@ import { findLeafActiveElement } from '~/utils/element'
 import { initFavoriteDialogEnhancement } from '~/utils/favoriteDialog'
 import { SELECTION_FALLBACK_CLASS, supportsHighlightInheritance } from '~/utils/highlightInheritance'
 import { i18n } from '~/utils/i18n'
+import { reportScrollbarGutterToParent } from '~/utils/iframeScrollbarGutter'
 import { runWhenIdle } from '~/utils/lazyLoad'
 import { getLocalWallpaper, hasLocalWallpaper, isLocalWallpaperUrl, localWallpapersLoaded } from '~/utils/localWallpaper'
 import { getCookie, injectCSS, isElectron, isHomePage, isInIframe, isNotificationPage, isVideoOrBangumiPage, isVideoPlaybackPage, isWatchLaterListPage } from '~/utils/main'
@@ -38,7 +40,7 @@ import { getPluginSearchResultsUrl, navigateToPluginSearchResultsInPlace, openSe
 import { installShortcutListener, setupShortcutHandlers } from '~/utils/shortcuts'
 import { SVG_ICONS } from '~/utils/svgIcons'
 import { openLinkInBackground } from '~/utils/tabs'
-import { initVerticalVideoZoom, resetVerticalVideoZoom } from '~/utils/verticalVideoZoom'
+import { applyBewlyDesignClasses, isVideoPageGlassStyleEnabled } from '~/utils/videoPageDesign'
 import { loadCurrentVideoPageInfo } from '~/utils/videoPageInfo'
 import { recordVideoVisitFromUrl } from '~/utils/videoVisitHistory'
 import { ensureResponsiveViewport } from '~/utils/viewportMeta'
@@ -53,13 +55,13 @@ import { setupNotificationStateInvalidation } from './features/notificationState
 import { setupOpusDetailDrawerLayout } from './features/opusDetailDrawerLayout'
 import { setupOriginalMomentsFilter } from './features/originalMomentsFilter'
 import { setupOriginalMomentsFoldComments } from './features/originalMomentsFoldComments'
+import { verifyPageScriptVersion } from './features/pageScriptVersionCheck'
 import { setupSettingsPageBridge } from './features/settingsPageBridge'
 import { setupVideoWatchProgress } from './features/videoWatchProgress'
 import { setupWatchLaterAutoRemove } from './features/watchLaterAutoRemove'
 import { initFullscreenWheelVolume } from './fullscreenWheelVolume'
 import { initImmersiveFeedFrame } from './immersiveFeedFrame'
 import { initKeyboardVolumeStep } from './keyboardVolumeStep'
-import { initListenVideoFeature } from './listenVideoFeature'
 import { initLocalLoudnessControl } from './localLoudnessControl'
 import type { PageLoadingGuard } from './pageLoading'
 import { initTouchPlayerGestures } from './touchPlayerGestures'
@@ -97,6 +99,8 @@ if (shouldInitializeContentScript) {
   setupApiFailureDiagnostics()
   // 先于 B 站脚本注册快捷键监听，覆盖其默认快捷键时才能先拦截事件。
   installShortcutListener()
+  // Firefox 更新扩展后会把新版 content script 注入旧页面，而页面脚本仍是旧版。
+  verifyPageScriptVersion(version)
   browser.runtime.onMessage.addListener((message: unknown) => {
     if (typeof message === 'object' && message !== null && 'type' in message && message.type === CONTENT_SCRIPT_PING) {
       const expected = 'expectedIdentity' in message ? message.expectedIdentity : undefined
@@ -361,23 +365,8 @@ else if (shouldInitializeContentScript) {
 
   void settingsReady.then(() => setupPluginSearchLinkNavigation())
 
-  function shouldApplyBewlyDesign() {
-    if (settings.value.adaptToOtherPageStyles)
-      return !isFestivalPage()
-
-    return settings.value.videoPageDarkMode && isVideoPlaybackPage()
-  }
-
-  function shouldApplyVideoPageDarkOnly() {
-    return !settings.value.adaptToOtherPageStyles
-      && settings.value.videoPageDarkMode
-      && isVideoPlaybackPage()
-  }
-
-  function applyBewlyDesignClasses() {
-    const shouldApply = shouldApplyBewlyDesign()
-    document.documentElement.classList.toggle('bewly-design', shouldApply)
-    document.documentElement.classList.toggle('bewly-video-dark-only', shouldApplyVideoPageDarkOnly())
+  function applyInitialBewlyDesignClasses() {
+    const shouldApply = applyBewlyDesignClasses()
     // Only takes effect together with bewly-design, which another watcher also toggles.
     document.documentElement.classList.toggle(SELECTION_FALLBACK_CLASS, !supportsHighlightInheritance())
     return shouldApply
@@ -388,10 +377,11 @@ else if (shouldInitializeContentScript) {
     if (!isSupportedPages() && !isSupportedIframePages())
       return
 
-    if (settings.value.adaptToOtherPageStyles || settings.value.videoPageDarkMode)
+    // 玻璃风格只限当前视频页，避免把主题同步扩散到未适配的其他页面。
+    if (settings.value.adaptToOtherPageStyles || settings.value.videoPageDarkMode || isVideoPageGlassStyleEnabled())
       useDark()
 
-    const shouldApplyFullStyles = applyBewlyDesignClasses()
+    const shouldApplyFullStyles = applyInitialBewlyDesignClasses()
 
     // opus 详情分栏布局与图片查看器检测都不依赖“适配其他页样式”，只要在 iframe 内就启用；
     // 否则关闭该设置后，首页 iframe 内打开大图时父页面顶栏不会隐藏，遮住关闭按钮（#1298）
@@ -575,10 +565,6 @@ else if (shouldInitializeContentScript) {
     applyDefaultCaptionState()
     applyRememberedPlaybackRate()
     startPlaybackRateMonitoring()
-    if (settings.value.showVerticalVideoZoomButton)
-      initVerticalVideoZoom()
-    else
-      resetVerticalVideoZoom()
 
     schedulePlaybackBehaviorApply()
     scheduleAddWatchLaterButton()
@@ -1160,7 +1146,6 @@ else if (shouldInitializeContentScript) {
         // 视为当前导航已完成的播放器模式，只重新应用伴随设置。
         if (!videoCommentIdentifier || !refreshBewlyWidescreenForNavigation())
           exitBewlyWidescreen()
-        resetVerticalVideoZoom()
         resetPlayerModeReadinessForNavigation()
         document.querySelector('.bewly-watch-later-btn')?.remove()
         watchLaterButtonAdded = false // URL变化时重置稍后再看按钮标志
@@ -1523,7 +1508,6 @@ else if (shouldInitializeContentScript) {
       initVideoQualityMemory()
       initVideoScreenshotControl()
       initVideoPipButtonControl()
-      initListenVideoFeature()
       initLocalLoudnessControl()
       initAmbilightControl()
       runWhenNativeVideoHeaderStable(initBewlyWidescreenControl)
@@ -1619,6 +1603,7 @@ else if (shouldInitializeContentScript) {
 
     const app = createApp(App)
     setupApp(app)
+    app.use(components)
     app.mount(root)
 
     let appDisposed = false
@@ -1694,16 +1679,6 @@ else if (shouldInitializeContentScript) {
   })
 
   watch(
-    () => settings.value.showVerticalVideoZoomButton,
-    (enabled) => {
-      if (enabled && isVideoOrBangumiPage())
-        initVerticalVideoZoom()
-      else
-        resetVerticalVideoZoom()
-    },
-  )
-
-  watch(
     () => settings.value.language,
     () => syncRandomPlayUI(),
   )
@@ -1770,6 +1745,7 @@ else if (shouldInitializeContentScript) {
 
   // useDark() 要等设置加载后才执行，提前记录父页面主题，之后由它继承。
   startIframeThemeListener()
+  reportScrollbarGutterToParent()
 
   // 监听来自父页面的黑暗模式切换消息（用于iframe跨域场景）
   window.addEventListener('message', (event) => {

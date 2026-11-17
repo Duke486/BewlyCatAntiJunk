@@ -178,7 +178,7 @@ common:
     bottom: Bottom
 layout_editor:
   finish: Done
-  edit_dock: Edit Dock
+  edit_dock: Edit mode
   edit_sidebar: Edit mode
   back_to_top: Back to top
   click_to_adjust: Click the element you want to adjust
@@ -225,10 +225,6 @@ player_screenshot:
   saved: Screenshot saved
   failed: Failed to capture screenshot
   video_unavailable: The current video frame is unavailable
-player_listen:
-  enter: Listen to video
-  exit: Restore video picture
-  listening: Listening
 settings:
   ambilight:
     title: Video Ambient Light
@@ -268,14 +264,14 @@ settings:
     fps_30: 30 fps · Smooth
   local_loudness:
     gain_history: Levelling gain · Last 60 seconds
-    summary: Balance volume across videos to reduce loudness differences when switching videos.
+    summary: Balance loudness across videos while smoothing loud and quiet passages within a single video.
     title: Volume balance
     enable: Enable local volume balance
-    description: Balance volume across videos to reduce loudness differences when switching. Enabling this turns off Bilibili's native normalization (it is not restored when this is disabled). Maximum boost is 6 dB.
+    description: Balance loudness across videos and adjust gain in real time during playback, so loud and quiet passages within a single video are smoothed too. Higher strength affects the original dynamics more. Enabling this turns off Bilibili's native normalization (it is not restored when this is disabled). Maximum boost is 6 dB.
     target: Target loudness
     target_desc: Start at -18 LUFS. Lower values are quieter. The player volume remains independently adjustable.
     strength: Levelling strength
-    strength_desc: Higher strength reduces loudness differences but also changes the dynamics of music and films more.
+    strength_desc: Higher strength reduces loudness differences both across and within videos, but also changes the dynamics of music and films more.
     status: Status
     states:
       off: Off
@@ -308,6 +304,7 @@ settings:
   following_sort_updated: By update time
   following_sort_group: By group
   title: Settings
+  open_in_new_tab: Open settings in a new tab
   menu_general: General
   menu_bewly_pages: Bewly Pages
   menu_bewly_components: Bewly Components
@@ -329,6 +326,8 @@ settings:
     placeholder: Search settings
     no_results: No matching settings
     located: Setting located
+    results_title: Search results
+    results_count: '{count} matching setting | {count} matching settings'
   category_general_desc: Configure language and interaction, and turn on only the parts of the extension you need, such as just comment or VIP features.
   category_appearance_desc: Configure frosted glass, theme colors, wallpaper, fonts, custom styles, and page style adaptation.
   category_shortcuts_desc: Enable, customize, or restore BewlyCat and player shortcuts.
@@ -341,7 +340,7 @@ settings:
   module_top_bar: Top bar
   module_top_bar_desc: "The extension's top bar and its management of the original one. When off, the extension no longer hides or changes any top bar, so pages show Bilibili's own. The Bewly homepage replaces the whole page and shows no top bar."
   module_dock: Dock
-  module_dock_desc: 'Page navigation. When Bewly pages are off, clicking an item goes straight to the original Bilibili page.'
+  module_dock_desc: 'Page navigation and floating sidebar. Required while Bewly pages are on; when Bewly pages are off, clicking an item goes straight to the original Bilibili page, and turning this module off leaves settings accessible from the browser toolbar icon.'
   module_sidebar: Floating sidebar
   module_sidebar_desc: 'Theme switch and settings entry, hidden while the Dock is shown. When off, open settings from the browser toolbar icon.'
   group_modules_enhancements: Enhancements
@@ -349,7 +348,7 @@ settings:
   module_comments: Comment enhancements
   module_comments_desc: 'Reply trees, IP location, gender, original poster tags, and comment image improvements.'
   module_player: Player enhancements
-  module_player_desc: 'Display modes, player buttons, listen mode, volume balance, ambient light, and autoplay control. Takes effect after a page refresh.'
+  module_player_desc: 'Display modes, player buttons, volume balance, ambient light, and autoplay control. Takes effect after a page refresh.'
   module_shortcuts: Keyboard shortcuts
   module_shortcuts_desc: Player and home page shortcuts provided by the extension.
   category_bilibili_moments_desc: 'Adjust modules and comment behavior on the original moments page, and filter moments.'
@@ -367,8 +366,7 @@ settings:
   category_playback_autoplay_desc: Configure autoplay and custom playback behavior.
   category_bilibili_comments_desc: Enhance user information and content displayed in comments.
   category_bilibili_vip_desc: Configure reminders related to premium membership benefits.
-  category_bilibili_listen_video_desc: Hide the video picture and keep only the audio, shown as a cover-and-title audio player.
-  category_bilibili_volume_balance_desc: Level loudness across videos locally to reduce sudden volume changes.
+  category_bilibili_volume_balance_desc: Balance loudness across videos and smooth loudness within them, locally.
   category_bilibili_ambilight_desc: Cast soft ambient light around the player that follows the picture.
   category_advanced_compatibility_desc: Block ads, clean links, and configure compatibility with original pages and other pages.
   category_advanced_maintenance_desc: Export a backup, import settings, or restore BewlyCat defaults.
@@ -424,7 +422,6 @@ settings:
     auto_play: Playback Behavior
     vip_features: VIP Features
     vip_features_placeholder: VIP feature enhancements will be added here in future updates.
-    listen_video: Listen to Video
     volume_balance: Volume Balance
     ambilight: Video Ambient Light
 
@@ -595,11 +592,6 @@ settings:
   moments_video_card_open_mode_desc: Controls where video post dynamic cards open independently. Choose "Follow dynamic cards" to use the setting above.
   moments_video_card_open_mode_opt:
     inherit: Follow dynamic cards
-  group_moments_wanted_users: Watchlist
-  group_moments_wanted_users_desc: Manage uploaders you want to watch by UID or name. The list is stored only on this device.
-  moments_enable_wanted_filter: Show Watchlist button
-  moments_enable_wanted_filter_desc: Show the Watchlist button in the Moments horizontal bar to display only posts from watchlisted uploaders.
-  moments_wanted_users: Watchlisted uploaders
   group_moments_pinned_users: Pinned uploaders
   group_moments_pinned_users_desc: Manage uploaders pinned to the right side of the Moments bar by UID or name. The list is stored only on this device.
   moments_pinned_users: Pinned uploaders
@@ -819,12 +811,6 @@ settings:
   video_card_author_font_size_desc: Controls the font size for uploader names shown on video cards.
   video_card_meta_font_size: Tag & timestamp font size
   video_card_meta_font_size_desc: Controls the font size for tags and timestamps shown below the title.
-  video_card_shadow_curve: Shadow gradient curve
-  video_card_shadow_curve_desc: Customize the gradient effect of the bottom shadow on video cards
-  video_card_shadow_curve_hint: Drag the line to create control points, right-click to delete
-  video_card_shadow_height: Shadow height
-  video_card_shadow_height_desc: Adjust the height ratio of the shadow covering the cover
-  video_card_shadow_reset: Reset shadow settings
   video_card_layout: Video card layout
   video_card_layout_desc: Switch between the redesigned card and the legacy layout.
   video_card_layout_option:
@@ -1084,7 +1070,7 @@ settings:
     title_keyword_placeholder: Enter a keyword and press Enter (case-insensitive)
     triple_synced: 'Synced to folders: {folders}'
     triple_sync_failed: Failed to sync favorites after triple action
-  wanted_users:
+  up_picker:
     no_results: No uploader found. Try another name.
     search_failed: Failed to search uploaders. Please try again later.
     invalid_uid: Enter a valid uploader UID
@@ -1093,19 +1079,12 @@ settings:
     info_failed: Failed to get uploader information. Please try again later.
     placeholder: Uploader UID or name
     pinned_already: This uploader is already pinned
-    wanted_already: This uploader is already in Wanted
     pinned_need_follow: Follow {name} before pinning them
-    wanted_need_follow: Follow {name} before adding them to Wanted
     pinned_added: Pinned {name} to the dynamic feed
-    wanted_added: Added {name} to Wanted
     pinned_removed: Unpinned {name}
-    wanted_removed: Removed {name} from Wanted
     remove_pinned: Unpin {name}
-    remove_wanted: Remove {name} from Wanted
     remove_pinned_title: Unpin
-    remove_wanted_title: Remove from Wanted
     pinned_empty: No uploaders pinned. Pinned uploaders appear on the right of the dynamic feed.
-    wanted_empty: No uploaders added. Add one to filter by Wanted on the Bewly dynamic feed.
   authorization_success: Authorization successful
   filter_by_title: Filter by title
   filter_by_title_desc: >-
@@ -1181,6 +1160,10 @@ settings:
   adapt_to_other_page_styles_desc: Adapt to some common pages to match with the BewlyBewly theme.
   disable_background: Disable background
   disable_background_desc: Completely disable the plugin page's solid, gradient and wallpaper backgrounds (including the search page wallpaper) to show the original Bilibili page background.
+  video_page_glass_style: Video page glass style
+  video_page_glass_style_desc: Show the background under a full-page frosted glass layer on video and anime playback pages (including Bewly widescreen), letting content blend directly into it. Wallpaper, mask, gradient and blur follow the appearance settings. Course pages are excluded.
+  rounded_video_player: Rounded video player
+  rounded_video_player_desc: Add rounded corners to the video player on video and anime pages, while keeping fullscreen, web fullscreen and mini player corners square.
   prevent_mobile_redirect: Prevent mobile redirect
   prevent_mobile_redirect_desc: When enabled, prevents www.bilibili.com from redirecting to the mobile site.
   enable_firefox_scrollbar_repaint: Repaint Firefox scrollbar
@@ -1384,8 +1367,6 @@ settings:
     caption_desc: Toggle captions
     video_screenshot: Video Screenshot
     video_screenshot_desc: Save the current video frame as a PNG image, even when the player screenshot button is hidden.
-    listen_video: Listen to video
-    listen_video_desc: Toggle listen-video mode, hiding the video picture and keeping only the audio.
     increase_playback_rate: Increase Speed
     increase_playback_rate_desc: Increase playback speed
     decrease_playback_rate: Decrease Speed
@@ -1469,36 +1450,12 @@ settings:
   enlarge_favorite_dialog_desc: When enabled, the favorite dialog on video pages will be displayed in a larger size for easier viewing and management.
   external_watch_later_button: External watch later button
   external_watch_later_button_desc: Show a standalone Watch later button in the video toolbar. It displays the current state and can add or remove the video.
-  show_vertical_video_zoom_button: Vertical video zoom button
-  show_vertical_video_zoom_button_desc: Show zoom controls and the visible-area position control for vertical videos
   show_bewly_widescreen_button: Show player Bewly Widescreen button
   show_bewly_widescreen_button_desc: Show the Bewly Widescreen button in the video player controls.
   show_video_screenshot_button: Show player screenshot button
   show_video_screenshot_button_desc: Show a screenshot button in the player controls. The shortcut still works when the button is hidden.
   show_video_pip_button: Show player picture-in-picture button
   show_video_pip_button_desc: Show the picture-in-picture button in the player controls. The shortcut still works when the button is hidden.
-  enable_listen_video: Enable listen-video mode
-  enable_listen_video_desc: Use the player button or shortcut to listen to videos. Only the picture is hidden; the video stream still loads.
-  show_listen_video_button: Show player listen-video button
-  show_listen_video_button_desc: Show a listen-video toggle in the player controls. The shortcut still works when the button is hidden.
-  listen_video_cover_shape: Listen-video cover shape
-  listen_video_cover_shape_desc: The vinyl circle spins while playing; square and rectangle stay still.
-  listen_video_cover_shape_circle: Vinyl circle
-  listen_video_cover_shape_square: Square
-  listen_video_cover_shape_rectangle: Rectangle
-  listen_video_glow: Listen-video cover glow
-  listen_video_glow_desc: Adds a soft halo behind the cover. The breathe mode pulses gently with playback and freezes when paused.
-  listen_video_glow_none: Off
-  listen_video_glow_static: Static
-  listen_video_glow_breathe: Breathe
-  listen_video_glow_color: Listen-video glow color
-  listen_video_glow_color_desc: Cover mode uses the cover's dominant color for the glow, or the theme color if unavailable.
-  listen_video_glow_color_theme: Theme color
-  listen_video_glow_color_cover: Follow cover
-  listen_video_background: Listen-video background
-  listen_video_background_desc: Blur fills the background with a blurred copy of the cover; solid keeps the plain dark backdrop.
-  listen_video_background_solid: Solid
-  listen_video_background_blur: Cover blur
   group_fonts: Font
   group_visual_effects: Visual Effects
   visibility: show
@@ -1733,6 +1690,18 @@ home:
   immersive_previous: Previous
   immersive_next: Next
   recommendations_retry: Home recommendations repeatedly failed. Refresh and try again.
+  recommendation_failed: 'Home recommendations failed to load: {reason}'
+  app_recommendation_failed: 'App recommendations failed to load: {reason}'
+  recommendation_failure_reason:
+    background: The extension's background connection was lost. Refresh the page; if it still fails, re-enable BewlyCat on the extensions page.
+    offline: You're offline. Reconnect, then refresh and try again.
+    timeout: The request timed out. The network may be slow, or a proxy or IPv6 route may be misbehaving. Check your network, then refresh.
+    network: Couldn't reach Bilibili's servers. Check your network and proxy settings, and make sure ad blockers or other extensions aren't blocking Bilibili's API.
+    http: Bilibili's server returned HTTP {status} and may be temporarily unavailable. Refresh later.
+    invalid_response: The response couldn't be read and may have been altered by a proxy, gateway or your network. Check your network, then try again.
+    api: The API returned an error ({detail}). Refresh later.
+    empty: The API kept returning empty lists. Bilibili may be limiting recommendations for now; try again later.
+    risk_control: The request triggered Bilibili's risk control. Refresh less often and try again later.
   weekly_issue: 'Issue {number}'
   select_issue: Select issue
   search_issue: Search issues…
@@ -1836,6 +1805,7 @@ favorites:
   unfav_seasons_failed: Failed to unfavorite {count} seasons
   search_all_folders: all
   search_current_folder: current
+  clear_search: Clear search
   search_placeholder: Search for current favorites
 version_reminder:
   trigger: What's new
@@ -1973,6 +1943,7 @@ moments:
   filter_article: Articles
   last_seen: Last seen here
   newer_above: Newer posts above
+  released_above: Some posts above were released
   jump_to_latest: Back to latest
   jump_to_last_seen: Jump to where you left off
   emoji: Emoji
@@ -2032,19 +2003,12 @@ moments:
   live_now: Live
   group_label: Post groups
   all_posts: All posts
-  wanted_only: Wanted uploaders only
-  cancel_wanted_only: Stop showing wanted uploaders only
-  wanted_scope_hint: Available only for All and Videos
-  wanted: Wanted
   scroll_left: Scroll frequently visited list left
   scroll_right: Scroll frequently visited list right
   frequent_uploaders: Frequently visited uploaders
   has_updates: Has updates
   pin_uploader: Pin uploader
-  no_recent_updates: No recent updates
-  add_wanted_first: Add wanted uploaders in Settings first
   empty: No posts to display
-  recheck: Check again
   reload: Reload
   loading_more: Loading and preparing more posts…
   new_tab: Open in new tab
@@ -2212,10 +2176,6 @@ player_state:
   volume: 'Volume {volume}%'
   on: On
   off: Off
-vertical_video:
-  zoom_in: Zoom in
-  zoom_out: Zoom out
-  adjust_area: Adjust vertical-video zoom area
 favorite_dialog:
   clear_selected: Clear selected
   folder_full: This favorite folder is full and cannot be added

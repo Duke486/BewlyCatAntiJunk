@@ -11,7 +11,6 @@ import { useCardWindow } from '~/composables/useCardWindow'
 import { useGridLayout } from '~/composables/useGridLayout'
 import { useHomeTabViewState } from '~/composables/useHomeTabState'
 import { useUserRelationScope } from '~/composables/useUserRelationScope'
-import { useVideoCardShadowStyle } from '~/composables/useVideoCardShadowStyle'
 import { OVERLAY_SCROLL_BAR_SCROLL } from '~/constants/globalEvents'
 import type { GridLayoutType } from '~/logic'
 import { originalSettings, settings } from '~/logic'
@@ -148,6 +147,11 @@ interface VideoCardGridProps<T = any> {
   emptyDescription?: string
 
   /**
+   * 请求失败时的说明，未提供时使用通用的失败提示
+   */
+  requestFailedDescription?: string
+
+  /**
    * 登录按钮文本
    */
   loginButtonText?: string
@@ -259,9 +263,6 @@ onBeforeUnmount(() => detachGridSnapshot?.())
 
 // 使用共享的 Grid 布局 composable（CSS 媒体查询驱动，无 JS 计算开销）
 const { gridClass, gridCssVars } = useGridLayout(() => props.gridLayout)
-
-// 获取 shadow 样式变量（避免依赖外部传入）
-const { shadowStyleVars } = useVideoCardShadowStyle()
 
 // 首屏骨架数量固定为目标数量，避免 ref 挂载后重新计算列数导致骨架数量变化。
 const dynamicSkeletonCount = computed(() => {
@@ -888,9 +889,8 @@ const horizontalCoverRatio = computed(() => {
   return normalizeVideoCardCoverRatio(value, fallback)
 })
 
-// 合并 shadow、grid 列数和横向卡片宽度分配变量。
+// 合并 grid 列数和横向卡片宽度分配变量。
 const gridContainerStyle = computed(() => ({
-  ...shadowStyleVars.value,
   ...gridCssVars.value,
   '--video-card-cover-flex': horizontalCoverRatio.value,
   '--video-card-info-flex': 100 - horizontalCoverRatio.value,
@@ -1379,7 +1379,7 @@ function getUniqueKey(item: T, index: number): string | number {
     <Empty
       v-else-if="showEmptyState"
       mt-6
-      :description="emptyDescription || $t(requestFailed ? 'common.api_error.request_failed' : 'common.no_more_content')"
+      :description="emptyDescription || (requestFailed ? requestFailedDescription || $t('common.api_error.request_failed') : $t('common.no_more_content'))"
     >
       <div class="grid-state-actions">
         <Button type="primary" @click="handleRefresh">
@@ -1438,7 +1438,7 @@ function getUniqueKey(item: T, index: number): string | number {
     />
 
     <!-- 无更多内容或请求失败提示（仅在有数据时显示，避免与空列表提示重复） -->
-    <Empty v-if="showListEndState" class="pb-4" :description="$t(requestFailed ? 'common.api_error.request_failed' : 'common.no_more_content')">
+    <Empty v-if="showListEndState" class="pb-4" :description="requestFailed ? requestFailedDescription || $t('common.api_error.request_failed') : $t('common.no_more_content')">
       <div class="grid-state-actions">
         <Button type="primary" @click="handleRefresh">
           {{ refreshButtonText || $t('common.operation.refresh') }}

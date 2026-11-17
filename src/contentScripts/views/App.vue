@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { onKeyStroke, useEventListener, useIntersectionObserver, useThrottleFn } from '@vueuse/core'
+import { onKeyStroke, useEventListener, useIntersectionObserver, useResizeObserver, useThrottleFn } from '@vueuse/core'
 import type { Ref } from 'vue'
-import { provide, ref, watch } from 'vue'
+import { effectScope, onScopeDispose, provide, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ApiErrorDetailsDialog from '~/components/ApiErrorDetailsDialog.vue'
 import ConfirmDialogOverlay from '~/components/ConfirmDialogOverlay.vue'
 import FirefoxScrollbar from '~/components/FirefoxScrollbar.vue'
 import Icon from '~/components/Icon.vue'
+import SettingsOverlay from '~/components/Settings/SettingsOverlay.vue'
 import TopBarModeSwitcher from '~/components/TopBar/components/TopBarModeSwitcher.vue'
 import { useAccountSync } from '~/composables/useAccountSync'
 import { useActiveApiErrorSource } from '~/composables/useApiErrorDetails'
@@ -19,6 +20,7 @@ import { useLayoutEditMode } from '~/composables/useLayoutEditMode'
 import { BEWLY_MOUNTED, DRAWER_VIDEO_ENTER_PAGE_FULL, DRAWER_VIDEO_EXIT_PAGE_FULL, IFRAME_PAGE_SWITCH_BEWLY, IFRAME_PAGE_SWITCH_BILI, IFRAME_SEARCH_NAVIGATION, OVERLAY_SCROLL_BAR_SCROLL, OVERLAY_SCROLL_STATE_CHANGE } from '~/constants/globalEvents'
 import { isOriginalMomentsFeed } from '~/contentScripts/features/originalMomentsFeed'
 import { installScrollBridge } from '~/contentScripts/features/scrollBridge'
+import { openSettingsOverlay, settingsOverlayTarget, settingsOverlayVisible } from '~/contentScripts/features/settingsOverlay'
 import { HomeSubPage } from '~/contentScripts/views/Home/types'
 import { AppPage } from '~/enums/appEnums'
 import { settings, settingsReady } from '~/logic'
@@ -26,6 +28,7 @@ import type { DockItem } from '~/stores/mainStore'
 import { useMainStore } from '~/stores/mainStore'
 import { useSettingsStore } from '~/stores/settingsStore'
 import { useTopBarStore } from '~/stores/topBarStore'
+import { isBewlyWidescreenActive } from '~/utils/bewlyWidescreen'
 import { stripBilibiliLocalePathname } from '~/utils/bilibiliLocale'
 import { setOriginalBilibiliTopBarScrolled, shouldShowOriginalBilibiliTopBar } from '~/utils/bilibiliTopBar'
 import { isFirefoxBuild } from '~/utils/buildTarget'
@@ -34,9 +37,9 @@ import { isHomePage, isInIframe, isNotificationPage, isSearchResultsPage, isVide
 import emitter from '~/utils/mitt'
 import { navigateToPluginSearchResults } from '~/utils/searchNavigation'
 import { applyPendingSettingsMigrations, formatSettingsMigrationConfirmMessage, getPendingSettingsMigrationChoices, hasPendingSettingsMigrations } from '~/utils/settingsMigration'
-import { openSettingsPage } from '~/utils/settingsPage'
 import { isComponentVisible } from '~/utils/topBarBadge'
 import { canOpenInVideoDialog } from '~/utils/videoDialog'
+import { isVideoPageGlassStyleEnabled } from '~/utils/videoPageDesign'
 
 import { setupNecessarySettingsWatchers } from './necessarySettingsWatchers'
 
@@ -48,17 +51,50 @@ useAccountSync()
 const { isLayoutEditing, exitLayoutEditMode } = useLayoutEditMode()
 const { t } = useI18n()
 
-// Conditionally use dark mode. `useDark()` handles the video-page-only route gate.
-let isDark: Ref<boolean>
-const shouldUseDark = settings.value.adaptToOtherPageStyles || settings.value.videoPageDarkMode
+// The top-bar switcher is teleported to document.body, outside this Shadow DOM.
+// Raise the host while the settings overlay is open so the modal can stay above that layer.
+watch(settingsOverlayVisible, (visible) => {
+  document.getElementById('bewly')?.classList.toggle('settings-open', visible)
+}, { immediate: true })
 
-if (shouldUseDark) {
-  const darkResult = useDark()
-  isDark = darkResult.isDark
-}
-else {
-  isDark = ref(false)
-}
+// Conditionally use dark mode. `useDark()` handles the video-page-only route gate;
+// lazily initialize in a persistent scope so toggling settings or SPA navigation takes effect immediately.
+const currentPageUrl = ref(window.location.href)
+const isWidescreenActive = ref(isBewlyWidescreenActive())
+let widescreenStateObserver: MutationObserver | undefined
+onMounted(() => {
+  isWidescreenActive.value = isBewlyWidescreenActive()
+  if (!document.body)
+    return
+  widescreenStateObserver = new MutationObserver(() => {
+    isWidescreenActive.value = isBewlyWidescreenActive()
+  })
+  widescreenStateObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['class'],
+  })
+})
+onUnmounted(() => {
+  widescreenStateObserver?.disconnect()
+  widescreenStateObserver = undefined
+})
+const shouldUseDark = computed(() =>
+  settings.value.adaptToOtherPageStyles
+  || settings.value.videoPageDarkMode
+  || isVideoPageGlassStyleEnabled(currentPageUrl.value),
+)
+const darkIsDark = shallowRef<Ref<boolean>>()
+const darkScope = effectScope()
+onScopeDispose(() => darkScope.stop())
+watch(
+  shouldUseDark,
+  (enabled) => {
+    if (enabled && !darkIsDark.value)
+      darkIsDark.value = darkScope.run(() => useDark().isDark)
+  },
+  { immediate: true },
+)
+const isDark = computed(() => shouldUseDark.value ? (darkIsDark.value?.value ?? false) : false)
 const searchFocusOverlayActive = ref(false)
 const pageWallpaperReady = ref(false)
 const useBlendedPageControls = computed(() => settings.value.enableFrostedGlass
@@ -211,6 +247,7 @@ const isHomeTabSwitching = ref<boolean>(false)
 function syncNavigationFromUrl() {
   // 注入层的 pushstate 事件在原生方法执行前派发，延后读取最终地址。
   queueMicrotask(() => {
+    currentPageUrl.value = window.location.href
     const page = getPageParam()
     if (page)
       activatedPage.value = page
@@ -222,7 +259,9 @@ function syncNavigationFromUrl() {
   })
 }
 useEventListener(window, 'pushstate', syncNavigationFromUrl)
+useEventListener(window, 'replacestate', syncNavigationFromUrl)
 useEventListener(window, 'popstate', syncNavigationFromUrl)
+useEventListener(window, 'hashchange', syncNavigationFromUrl)
 
 watch(
   () => settings.value.homePageTabVisibilityList,
@@ -379,6 +418,26 @@ function refreshLayoutEditTargets() {
     }
   }
 
+  // 原站新版评论内部使用 Shadow DOM；只对外层评论区提供一个整体入口。
+  const commentRegion = Array.from(document.querySelectorAll<HTMLElement>(
+    'bili-comments, #commentapp, #comment-module, #comment-body, .commentapp, .comment-container, .bili-comment-container, .bb-comment',
+  )).find(isLayoutEditCandidateVisible)
+  if (commentRegion) {
+    // 评论增强关闭时评论设置页被隐藏，改为定位到常规设置中的评论模块开关。
+    appendTarget(commentRegion, settings.value.enableCommentEnhancements
+      ? {
+          key: 'page-comments',
+          menu: 'Bilibili',
+          secondaryPage: 'comments',
+          targetTitleKey: 'settings.group_comments',
+        }
+      : {
+          key: 'page-comments',
+          menu: 'General',
+          targetTitleKey: 'settings.module_comments',
+        })
+  }
+
   if (isOriginalMomentsFeedPage()) {
     const originalMomentTargets = [
       {
@@ -511,7 +570,7 @@ function blockOriginalLayoutInteraction(event: Event) {
   if (event.type === 'click' && directTarget) {
     const menu = directTarget.dataset.layoutSettingsMenu as SettingsNavigationTarget['menu'] | undefined
     if (menu) {
-      openSettingsPage({
+      openSettingsOverlay({
         menu,
         secondaryPage: directTarget.dataset.layoutSettingsPage,
         targetTitleKey: directTarget.dataset.layoutSettingsTitleKey,
@@ -526,7 +585,7 @@ function blockOriginalLayoutInteraction(event: Event) {
 }
 
 function openLayoutTargetSettings(target: LayoutEditTargetProxy) {
-  openSettingsPage({
+  openSettingsOverlay({
     menu: target.menu,
     secondaryPage: target.secondaryPage,
     targetTitleKey: target.targetTitleKey,
@@ -601,14 +660,16 @@ const layoutEditContextActions = computed<LayoutEditQuickSettingsAction[]>(() =>
         secondaryPage: 'player',
         targetTitleKey: 'settings.external_watch_later_button',
       },
-      {
-        key: 'video-sidebar-position',
-        labelKey: 'layout_editor.video_sidebar_position',
-        icon: 'mingcute:navigation-line',
-        menu: 'BewlyComponents',
-        secondaryPage: 'dock',
-        targetTitleKey: 'settings.sidebar_position',
-      },
+      ...(settings.value.enableDock && settings.value.enableSideBar && !settings.value.useOriginalBilibiliHomepage && !settings.value.alwaysUseDock
+        ? [{
+            key: 'video-sidebar-position',
+            labelKey: 'layout_editor.video_sidebar_position',
+            icon: 'mingcute:navigation-line',
+            menu: 'BewlyComponents' as const,
+            secondaryPage: 'dock',
+            targetTitleKey: 'settings.sidebar_position',
+          }]
+        : []),
       {
         key: 'video-topbar-auto-hide',
         labelKey: 'layout_editor.video_topbar_auto_hide',
@@ -805,7 +866,7 @@ function openLayoutEditPageModeSettings() {
   if (!dockPage)
     return
 
-  openSettingsPage({
+  openSettingsOverlay({
     menu: 'BewlyComponents',
     secondaryPage: 'dock',
     targetTitleKey: dockPage.i18nKey,
@@ -814,7 +875,7 @@ function openLayoutEditPageModeSettings() {
 
 function openLayoutEditGridSettings() {
   if (layoutEditGridActionKind.value === 'moments') {
-    openSettingsPage({
+    openSettingsOverlay({
       menu: 'BewlyPages',
       secondaryPage: 'moments',
       targetTitleKey: 'settings.moments_grid_columns',
@@ -823,7 +884,7 @@ function openLayoutEditGridSettings() {
   }
 
   if (layoutEditGridActionKind.value === 'video-card') {
-    openSettingsPage({
+    openSettingsOverlay({
       menu: 'BewlyComponents',
       secondaryPage: 'video-card',
       targetTitleKey: 'settings.grid_breakpoints',
@@ -832,7 +893,7 @@ function openLayoutEditGridSettings() {
 }
 
 function openLayoutEditDockPositionSettings() {
-  openSettingsPage({
+  openSettingsOverlay({
     menu: 'BewlyComponents',
     secondaryPage: 'dock',
     targetTitleKey: 'settings.dock_position',
@@ -840,7 +901,7 @@ function openLayoutEditDockPositionSettings() {
 }
 
 function openLayoutEditTopBarModeSettings() {
-  openSettingsPage({
+  openSettingsOverlay({
     menu: 'BewlyComponents',
     secondaryPage: 'topbar',
     targetTitleKey: 'topbar.top_bar_switcher',
@@ -848,7 +909,7 @@ function openLayoutEditTopBarModeSettings() {
 }
 
 function openLayoutEditSearchResultsSettings() {
-  openSettingsPage({
+  openSettingsOverlay({
     menu: 'BewlyPages',
     secondaryPage: 'search',
     targetTitleKey: 'settings.group_search_results',
@@ -856,7 +917,7 @@ function openLayoutEditSearchResultsSettings() {
 }
 
 function openLayoutEditContextSettings(action: LayoutEditQuickSettingsAction) {
-  openSettingsPage({
+  openSettingsOverlay({
     menu: action.menu,
     secondaryPage: action.secondaryPage,
     targetTitleKey: action.targetTitleKey,
@@ -875,11 +936,6 @@ watch(isLayoutEditing, (editing) => {
     stopLayoutEditTargetObserver()
   }
 }, { immediate: true })
-
-watch(() => settings.value.showLayoutEditButton, (visible) => {
-  if (!visible && isLayoutEditing.value)
-    exitLayoutEditMode()
-})
 
 watch(() => settings.value.dockPosition, () => {
   nextTick(scheduleLayoutEditTargetsRefresh)
@@ -905,6 +961,15 @@ onUnmounted(stopLayoutEditTargetObserver)
 const scrollViewportRef = ref<HTMLElement | null>(null)
 // Firefox 原生滚动条无法自定义外观，仅 Firefox 包提供可选的重绘滚动条
 const useFirefoxScrollbar = computed(() => isFirefoxBuild && settings.value.enableFirefoxScrollbarRepaint)
+// 首页由内部容器或 iframe 滚动，滚动条位于窗口右缘；顶栏和 Dock 让出这一列，
+// 与原版页面中 fixed 元素止于文档滚动条左侧的位置保持一致。
+const viewportScrollbarGutter = ref(0)
+const iframeScrollbarGutter = ref(0)
+useResizeObserver(scrollViewportRef, ([entry]) => {
+  const viewport = entry.target as HTMLElement
+  viewportScrollbarGutter.value = viewport.offsetWidth - viewport.clientWidth
+})
+
 watch(scrollViewportRef, (viewport, _previousViewport, onCleanup) => {
   if (viewport && isHomePage() && !settings.value.useOriginalBilibiliHomepage)
     onCleanup(installScrollBridge(viewport))
@@ -1099,6 +1164,20 @@ const showBewlyPage = computed((): boolean => {
   return isHomePage() && !settings.value.useOriginalBilibiliHomepage
 })
 
+const pageScrollbarGutter = computed(() => {
+  if (showBewlyPage.value)
+    return viewportScrollbarGutter.value
+  return iframePageURL.value ? iframeScrollbarGutter.value : 0
+})
+// 原版页面的文档滚动条不需要让位，但 Dock 需要据此收紧与滚动条之间的边距。
+const documentScrollbarWidth = ref(0)
+function measureDocumentScrollbar() {
+  documentScrollbarWidth.value = Math.max(0, window.innerWidth - document.documentElement.clientWidth)
+}
+useResizeObserver(document.documentElement, measureDocumentScrollbar)
+useEventListener(window, 'resize', measureDocumentScrollbar, { passive: true })
+const pageScrollbarSize = computed(() => pageScrollbarGutter.value || documentScrollbarWidth.value)
+
 // Bewly 页面关闭时没有可切换的插件页，Dock 作为全站导航显示在所有页面。
 const showDock = computed((): boolean => {
   if (!settings.value.enableDock)
@@ -1109,6 +1188,18 @@ const showDock = computed((): boolean => {
     || showBewlyPage.value
     || Boolean(iframePageURL.value)
 })
+
+const showSideBar = computed((): boolean => {
+  return settings.value.enableDock && settings.value.enableSideBar && !showDock.value
+})
+
+watch(
+  () => settings.value.showLayoutEditButton && (showDock.value || showSideBar.value),
+  (canEditLayout) => {
+    if (!canEditLayout && isLayoutEditing.value)
+      exitLayoutEditMode()
+  },
+)
 
 // App outlives page components. Drop outgoing closures before the next page
 // registers its actions so evicted KeepAlive pages and their lists can be collected.
@@ -1125,7 +1216,7 @@ watch([activatedPage, () => activatedPage.value === AppPage.Home ? homeActivated
 // Keep the browser tab title in sync with the page selected from the Dock.
 // Search results manages its own keyword-aware title in SearchResults.vue.
 const dockPageTitle = computed<string | undefined>(() => {
-  if (activatedPage.value === AppPage.SearchResults)
+  if (settings.value.useOriginalBilibiliHomepage || activatedPage.value === AppPage.SearchResults)
     return undefined
 
   const titleKey = activatedPage.value === AppPage.Home
@@ -1207,6 +1298,9 @@ function focusScrollViewport(options: { force?: boolean } = {}) {
 
 const isFirstTimeActivatedPageChange = ref<boolean>(true)
 function syncNavigationUrl() {
+  if (settings.value.useOriginalBilibiliHomepage)
+    return
+
   const url = new URL(window.location.href)
   // 停留在默认首页及默认标签时不写入参数，切换后再记录 page/tab。
   const keepTab = activatedPage.value === AppPage.Home
@@ -1256,7 +1350,7 @@ watch(
   { immediate: true, flush: 'post' },
 )
 
-watch([() => showTopBar.value, () => activatedPage.value], () => {
+watch([() => showTopBar.value, () => activatedPage.value, () => settings.value.useOriginalBilibiliHomepage], () => {
   // Remove the original Bilibili top bar when using original bilibili page to avoid two top bars showing
   const biliHeader = document.querySelector('.bili-header') as HTMLElement | null
   if (biliHeader && isHomePage()) {
@@ -1645,7 +1739,7 @@ provide<BewlyAppProvider>('BEWLY_APP', {
   haveScrollbar,
   activeDrawer,
   setActiveDrawer,
-  openSettings: openSettingsPage,
+  openSettings: openSettingsOverlay,
 })
 
 if (settings.value.cleanUrlArgument) {
@@ -1821,6 +1915,10 @@ if (settings.value.cleanUrlArgument) {
       'bewly-wrapper--viewport': isHomePage() && !settings.useOriginalBilibiliHomepage,
       [SELECTION_FALLBACK_CLASS]: !supportsHighlightInheritance(),
     }"
+    :style="{
+      '--bew-page-scrollbar-gutter': `${pageScrollbarGutter}px`,
+      '--bew-page-scrollbar-size': `${pageScrollbarSize}px`,
+    }"
     text="$bew-text-1"
     @pointerdown.capture="blockOriginalLayoutInteraction"
     @click.capture="blockOriginalLayoutInteraction"
@@ -1833,6 +1931,13 @@ if (settings.value.cleanUrlArgument) {
     <template v-if="showBewlyPage && !settings.disableBackground">
       <AppBackground :activated-page="activatedPage" @wallpaper-ready="pageWallpaperReady = $event" />
     </template>
+    <div
+      v-else-if="isVideoPageGlassStyleEnabled(currentPageUrl)"
+      class="bewly-video-page-background"
+      :class="{ 'bewly-video-page-background--widescreen': isWidescreenActive }"
+    >
+      <AppBackground :activated-page="AppPage.Home" />
+    </div>
 
     <Transition name="fade">
       <svg
@@ -1992,7 +2097,7 @@ if (settings.value.cleanUrlArgument) {
         @dock-item-click="handleDockItemClick"
       />
       <SideBar
-        v-else-if="settings.enableSideBar"
+        v-else-if="showSideBar"
         pointer-events-auto
       />
     </div>
@@ -2075,7 +2180,12 @@ if (settings.value.cleanUrlArgument) {
       <FirefoxScrollbar v-if="useFirefoxScrollbar && showBewlyPage" :target="scrollViewportRef" />
 
       <Transition v-if="!showBewlyPage && iframePageURL && !isInIframe()" name="fade">
-        <IframePage ref="iframePageRef" :url="iframePageURL" @scroll="topBarRef?.handleScroll($event)" />
+        <IframePage
+          ref="iframePageRef"
+          :url="iframePageURL"
+          @scroll="topBarRef?.handleScroll($event)"
+          @scrollbar-gutter="iframeScrollbarGutter = $event"
+        />
       </Transition>
     </div>
 
@@ -2098,6 +2208,16 @@ if (settings.value.cleanUrlArgument) {
       @close="activeApiErrorSource = null"
     />
 
+    <KeepAlive>
+      <SettingsOverlay
+        v-if="settingsOverlayVisible"
+        style="z-index: var(--bew-z-settings);"
+        :pending-navigation="settingsOverlayTarget"
+        @update:pending-navigation="settingsOverlayTarget = $event"
+        @close="settingsOverlayVisible = false"
+      />
+    </KeepAlive>
+
     <!-- Static confirm overlay: no Transition/Teleport (see useConfirmDialogHost). -->
     <ConfirmDialogOverlay
       v-if="activeConfirmDialog"
@@ -2110,7 +2230,7 @@ if (settings.value.cleanUrlArgument) {
 
 <style lang="scss" scoped>
 .top-bar-layer {
-  z-index: 1001;
+  z-index: var(--bew-z-top-bar);
 }
 
 .layout-edit-backdrop {
@@ -2274,6 +2394,28 @@ if (settings.value.cleanUrlArgument) {
   // To fix the filter used in `.bewly-wrapper` that cause the positions of elements become discorded.
   > * > * {
     filter: var(--bew-filter-force-dark);
+  }
+}
+
+// #bewly 不形成层叠上下文，负层级可排到原生页面内容（z-index: auto）与环境光（z-index: -1）之后；
+// Bewly 宽屏根节点为 z-index: 1000，此时背景层升至 999 以遮住底层未搬移的原站残余节点。
+.bewly-video-page-background {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+
+  &--widescreen {
+    z-index: 999;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: color-mix(in oklab, var(--bew-bg) calc(var(--bew-content-opacity) * 74%), transparent);
+    -webkit-backdrop-filter: var(--bew-filter-glass-2);
+    backdrop-filter: var(--bew-filter-glass-2);
   }
 }
 

@@ -4,22 +4,48 @@ import { useI18n } from 'vue-i18n'
 import type { AntiJunkStatus } from './protocol'
 import { ANTI_JUNK_STATUS_ICONS } from './protocol'
 
-defineProps<{ inspect: boolean, status?: AntiJunkStatus, detail?: { rule: string, round: number }, blocked: boolean, busy: boolean }>()
-defineEmits<{ feedback: [verdict: 'block' | 'allow'], retry: [] }>()
+defineProps<{
+  inspect: boolean
+  status?: AntiJunkStatus
+  detail?: { rule: string; round: number }
+  blocked: boolean
+  busy: boolean
+}>()
+defineEmits<{ feedback: [verdict: 'block' | 'allow']; retry: [] }>()
 const { t } = useI18n()
 </script>
 
 <template>
   <span class="anti-junk-tools">
-    <span v-if="inspect" :title="detail ? t('anti_junk.decision_detail', { ...detail, rule: t(`anti_junk.rules.${detail.rule}`) }) : t(`anti_junk.status_${status || 'queued'}`)">{{ ANTI_JUNK_STATUS_ICONS[status || 'queued'] }}</span>
+    <span
+      v-if="inspect"
+      :title="
+        detail
+          ? t('anti_junk.decision_detail', { ...detail, rule: t(`anti_junk.rules.${detail.rule}`) })
+          : t(`anti_junk.status_${status || 'queued'}`)
+      "
+      >{{ ANTI_JUNK_STATUS_ICONS[status || 'queued'] }}</span
+    >
     <button
-      v-if="status === 'error'" type="button" class="anti-junk-add" :title="t('anti_junk.retry')" :aria-label="t('anti_junk.retry')"
+      v-if="status === 'error'"
+      type="button"
+      class="anti-junk-add"
+      :title="t('anti_junk.retry')"
+      :aria-label="t('anti_junk.retry')"
       @click.stop="$emit('retry')"
-    >↻</button>
+    >
+      ↻
+    </button>
     <button
-      type="button" class="anti-junk-add" :disabled="busy" :title="t(blocked ? 'anti_junk.keep_example' : 'anti_junk.add_example')" :aria-label="t(blocked ? 'anti_junk.keep_example' : 'anti_junk.add_example')"
+      type="button"
+      class="anti-junk-add"
+      :disabled="busy"
+      :title="t(blocked ? 'anti_junk.keep_example' : 'anti_junk.add_example')"
+      :aria-label="t(blocked ? 'anti_junk.keep_example' : 'anti_junk.add_example')"
       @click.stop="$emit('feedback', blocked ? 'allow' : 'block')"
-    >{{ blocked ? '✓' : '⊘' }}</button>
+    >
+      {{ blocked ? '✓' : '⊘' }}
+    </button>
   </span>
 </template>
 

@@ -15,26 +15,29 @@ const includeKey = ref(false)
 const busy = ref(false)
 const status = ref('')
 const error = ref('')
-const request = (action: string, payload?: unknown) => browser.runtime.sendMessage({ type: ANTI_JUNK_MESSAGE, action, payload })
+const request = (action: string, payload?: unknown) =>
+  browser.runtime.sendMessage({ type: ANTI_JUNK_MESSAGE, action, payload })
 
 async function exportBackup() {
   busy.value = true
   status.value = error.value = ''
   try {
-    const result = await request('export-download', { includeKey: includeKey.value }) as { ok?: boolean }
-    if (!result?.ok)
-      error.value = 'storage-error'
+    const result = (await request('export-download', { includeKey: includeKey.value })) as {
+      ok?: boolean
+    }
+    if (!result?.ok) error.value = 'storage-error'
+  } catch {
+    error.value = 'storage-error'
+  } finally {
+    busy.value = false
   }
-  catch { error.value = 'storage-error' }
-  finally { busy.value = false }
 }
 
 async function importBackup(event: Event) {
   const element = event.target as HTMLInputElement
   const file = element.files?.[0]
   element.value = ''
-  if (!file)
-    return
+  if (!file) return
   busy.value = true
   status.value = error.value = ''
   try {
@@ -45,25 +48,35 @@ async function importBackup(event: Event) {
     let backup: unknown
     try {
       backup = JSON.parse(await file.text())
-    }
-    catch {
+    } catch {
       error.value = 'invalid-backup'
       return
     }
-    const result = await request('import', backup) as { ok?: boolean, keyMissing?: boolean, error?: string }
-    if (result.error || !result.ok)
-      error.value = result.error ?? 'storage-error'
+    const result = (await request('import', backup)) as {
+      ok?: boolean
+      keyMissing?: boolean
+      error?: string
+    }
+    if (result.error || !result.ok) error.value = result.error ?? 'storage-error'
     else
-      status.value = t(result.keyMissing ? 'anti_junk.backup_key_missing' : 'anti_junk.backup_imported')
+      status.value = t(
+        result.keyMissing ? 'anti_junk.backup_key_missing' : 'anti_junk.backup_imported',
+      )
+  } catch {
+    error.value = 'storage-error'
+  } finally {
+    busy.value = false
   }
-  catch { error.value = 'storage-error' }
-  finally { busy.value = false }
 }
 </script>
 
 <template>
   <SettingsItemGroup :title="t('anti_junk.backup_title')" :desc="t('anti_junk.backup_desc')">
-    <SettingsItem :title="t('anti_junk.backup_include_key')" :desc="t('anti_junk.backup_key_note')" right-width="auto">
+    <SettingsItem
+      :title="t('anti_junk.backup_include_key')"
+      :desc="t('anti_junk.backup_key_note')"
+      right-width="auto"
+    >
       <Radio v-model="includeKey" :disabled="busy" />
     </SettingsItem>
     <div class="anti-junk-backup">
@@ -75,7 +88,13 @@ async function importBackup(event: Event) {
           {{ t('anti_junk.backup_export') }}
         </Button>
       </div>
-      <input ref="input" type="file" accept=".json,application/json" hidden @change="importBackup">
+      <input
+        ref="input"
+        type="file"
+        accept=".json,application/json"
+        hidden
+        @change="importBackup"
+      />
       <p v-if="status" role="status">
         {{ status }}
       </p>

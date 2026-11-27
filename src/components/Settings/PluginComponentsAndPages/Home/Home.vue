@@ -6,6 +6,7 @@ import draggable from 'vuedraggable'
 import AppAuthorizationDialog from '~/components/AppAuthorizationDialog.vue'
 import Input from '~/components/Input.vue'
 import Radio from '~/components/Radio.vue'
+import Select from '~/components/Select.vue'
 import { useBewlyApp } from '~/composables/useAppProvider'
 import { HomeSubPage } from '~/contentScripts/views/Home/types'
 import { appAuthTokens, settings } from '~/logic'
@@ -21,7 +22,6 @@ import {
 
 import SettingsItem from '../../components/SettingsItem.vue'
 import SettingsItemGroup from '../../components/SettingsItemGroup.vue'
-import SettingsSegmentedControl from '../../components/SettingsSegmentedControl.vue'
 import SettingsToggleTag from '../../components/SettingsToggleTag.vue'
 import FilterByTitleTable from './components/FilterByTitleTable.vue'
 import FilterByUserTable from './components/FilterByUserTable.vue'
@@ -33,7 +33,7 @@ const toast = useToast()
 const recommendationModeOptions = computed(() => createRecommendationModeOptions(t))
 const recommendationModeOption = computed({
   get: () => getRecommendationModeOption(),
-  set: option => applyRecommendationModeOption(option),
+  set: (option) => applyRecommendationModeOption(option),
 })
 
 const recommendationModeOptionIcons: Record<RecommendationModeOption, string> = {
@@ -44,21 +44,30 @@ const recommendationModeOptionIcons: Record<RecommendationModeOption, string> = 
 }
 
 function getRecommendationModeLabel(mode: RecommendationModeOption) {
-  return recommendationModeOptions.value.find(option => option.value === mode)?.label ?? mode
+  return recommendationModeOptions.value.find((option) => option.value === mode)?.label ?? mode
 }
 
-function handleToggleRecommendationModeSwitcherOption(item: Settings['recommendationModeSwitcherOptions'][number], visible: boolean) {
-  if (!visible && settings.value.recommendationModeSwitcherOptions.filter(option => option.visible).length <= MIN_RECOMMENDATION_MODE_SWITCHER_OPTIONS)
+function handleToggleRecommendationModeSwitcherOption(
+  item: Settings['recommendationModeSwitcherOptions'][number],
+  visible: boolean,
+) {
+  if (
+    !visible &&
+    settings.value.recommendationModeSwitcherOptions.filter((option) => option.visible).length <=
+      MIN_RECOMMENDATION_MODE_SWITCHER_OPTIONS
+  )
     return
   item.visible = visible
 }
 
-const followingUploaderSortOptions = computed<{ label: string, value: Settings['followingUploaderSort'] }[]>(() => [
+const followingUploaderSortOptions = computed<
+  { label: string; value: Settings['followingUploaderSort'] }[]
+>(() => [
   { label: t('settings.following_sort_updated'), value: 'updated' },
   { label: t('settings.following_sort_group'), value: 'group' },
 ])
 
-const homeTabsPositionOptions = computed<{ label: string, value: TabsPosition }[]>(() => [
+const homeTabsPositionOptions = computed<{ label: string; value: TabsPosition }[]>(() => [
   { label: t('common.position.left'), value: 'left' },
   { label: t('common.position.center'), value: 'center' },
 ])
@@ -68,7 +77,11 @@ const { openSettings } = useBewlyApp()
 
 // 搜索页模式与搜索页共用同一组设置，跳到搜索页设置修改，不在这里再嵌一份。
 function openSearchPageSettings() {
-  openSettings({ menu: 'BewlyPages', secondaryPage: 'search', targetTitleKey: 'settings.plugin.search' })
+  openSettings({
+    menu: 'BewlyPages',
+    secondaryPage: 'search',
+    targetTitleKey: 'settings.plugin.search',
+  })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -95,7 +108,8 @@ function handleCloseQRCodeDialog() {
 }
 
 function handleExport(filterType: 'title' | 'user') {
-  const filters = filterType === 'title' ? settings.value.filterByTitle : settings.value.filterByUser
+  const filters =
+    filterType === 'title' ? settings.value.filterByTitle : settings.value.filterByUser
   const jsonString = JSON.stringify(filters, null, 2) // Pretty print JSON
   const blob = new Blob([jsonString], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -112,39 +126,42 @@ function handleImport(filterType: 'title' | 'user') {
   input.accept = '.json'
   input.onchange = async (e) => {
     const file = (e.target as HTMLInputElement).files?.[0]
-    if (!file)
-      return
+    if (!file) return
 
     try {
       const fileContent = await file.text()
       const importedFilters: unknown = JSON.parse(fileContent)
 
-      if (!Array.isArray(importedFilters)
-        || !importedFilters.every(filter => isRecord(filter)
-          && typeof filter.keyword === 'string'
-          && typeof filter.remark === 'string'
-          && filter.keyword.trim() !== '')) {
+      if (
+        !Array.isArray(importedFilters) ||
+        !importedFilters.every(
+          (filter) =>
+            isRecord(filter) &&
+            typeof filter.keyword === 'string' &&
+            typeof filter.remark === 'string' &&
+            filter.keyword.trim() !== '',
+        )
+      ) {
         throw new Error('Invalid file format')
       }
 
-      const normalized = importedFilters.map(filter => ({
+      const normalized = importedFilters.map((filter) => ({
         keyword: filter.keyword.trim(),
         remark: filter.remark.trim(),
       }))
 
       if (filterType === 'title') {
         settings.value.filterByTitle = normalized
-      }
-      else {
+      } else {
         settings.value.filterByUser = normalized
       }
       // toast.success(`${filterType} filters imported successfully`)
-    }
-    catch (error) {
+    } catch (error) {
       console.error(`Error importing filter by ${filterType}:`, error)
-      toast.error(`Failed to import ${filterType} filters: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-    finally {
+      toast.error(
+        `Failed to import ${filterType} filters: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      )
+    } finally {
       input.remove()
     }
   }
@@ -178,12 +195,15 @@ function resetHomeTabs() {
 }
 
 function getHomeTabLabel(page: HomeSubPage) {
-  return t(mainStore.homeTabs.find(tab => tab.page === page)?.i18nKey ?? '')
+  return t(mainStore.homeTabs.find((tab) => tab.page === page)?.i18nKey ?? '')
 }
 
 function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number], visible: boolean) {
   // 至少保留一个可见标签
-  if (!visible && settings.value.homePageTabVisibilityList.filter(item => item.visible).length <= 1)
+  if (
+    !visible &&
+    settings.value.homePageTabVisibilityList.filter((item) => item.visible).length <= 1
+  )
     return
   tab.visible = visible
 }
@@ -196,10 +216,10 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
         <Radio v-model="settings.useSearchPageModeOnHomePage" />
       </SettingsItem>
       <template v-if="settings.useSearchPageModeOnHomePage">
-        <SettingsItem :title="$t('settings.settings_shared_with_the_search_page')" right-width="auto">
-          <template #desc>
-            <span class="bew-warning-text">{{ $t('settings.settings_shared_with_the_search_page_desc') }}</span>
-          </template>
+        <SettingsItem
+          :title="$t('settings.settings_shared_with_the_search_page')"
+          right-width="auto"
+        >
           <Button type="secondary" center @click="openSearchPageSettings">
             {{ $t('settings.btn.open_settings') }}
           </Button>
@@ -211,9 +231,7 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
       </template>
     </SettingsItemGroup>
 
-    <SettingsItemGroup
-      :title="$t('settings.group_home_tabs')"
-    >
+    <SettingsItemGroup :title="$t('settings.group_home_tabs')">
       <SettingsItem
         :title="$t('settings.home_tabs_adjustment')"
         :desc="$t('settings.home_tabs_adjustment_desc')"
@@ -251,10 +269,11 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
         </template>
       </SettingsItem>
       <SettingsItem :title="$t('settings.home_tabs_position')" right-width="auto">
-        <SettingsSegmentedControl
+        <Select
           v-model="settings.homeTabsPosition"
-          :label="$t('settings.home_tabs_position')"
+          :aria-label="$t('settings.home_tabs_position')"
           :options="homeTabsPositionOptions"
+          w="160px"
         />
       </SettingsItem>
       <SettingsItem :title="$t('settings.fixed_home_tabs_on_home_page')" right-width="auto">
@@ -270,10 +289,11 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
         <template #desc>
           <p>{{ $t('settings.recommendation_mode_desc') }}</p>
         </template>
-        <SettingsSegmentedControl
+        <Select
           v-model="recommendationModeOption"
-          :label="$t('settings.recommendation_mode')"
+          :aria-label="$t('settings.recommendation_mode')"
           :options="recommendationModeOptions"
+          w="160px"
           @change="handleRecommendationModeChange"
         />
       </SettingsItem>
@@ -321,13 +341,20 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
         <Radio v-model="settings.rememberNoCookieRecommendationState" />
       </SettingsItem>
 
-      <SettingsItem v-if="settings.recommendationMode === 'app'" :title="$t('settings.authorize_app')" right-width="auto">
+      <SettingsItem
+        v-if="settings.recommendationMode === 'app'"
+        :title="$t('settings.authorize_app')"
+        right-width="auto"
+      >
         <template #desc>
           {{ $t('settings.authorize_app_desc') }}
-          <br>
+          <br />
           <a
-            href="https://github.com/indefined/UserScripts/tree/master/bilibiliHome#%E6%8E%88%E6%9D%83%E8%AF%B4%E6%98%8E" target="_blank" color="$bew-theme-color"
-          >{{ $t('settings.authorize_app_more_info_access_key') }}</a>
+            href="https://github.com/indefined/UserScripts/tree/master/bilibiliHome#%E6%8E%88%E6%9D%83%E8%AF%B4%E6%98%8E"
+            target="_blank"
+            color="$bew-theme-color"
+            >{{ $t('settings.authorize_app_more_info_access_key') }}</a
+          >
         </template>
 
         <div w-full>
@@ -335,7 +362,10 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
             {{ $t('settings.btn.authorize') }}...
           </Button>
           <Button
-            v-else type="secondary" center style="--b-button-text-color: var(--bew-error-color)"
+            v-else
+            type="secondary"
+            center
+            style="--b-button-text-color: var(--bew-error-color)"
             @click="handleRevoke"
           >
             {{ $t('settings.btn.revoke') }}
@@ -343,18 +373,23 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
         </div>
       </SettingsItem>
 
-      <SettingsItem :title="$t('settings.auto_switch_recommendation_mode')" :desc="$t('settings.auto_switch_recommendation_mode_desc')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.auto_switch_recommendation_mode')"
+        :desc="$t('settings.auto_switch_recommendation_mode_desc')"
+        right-width="auto"
+      >
         <Radio v-model="settings.autoSwitchRecommendationMode" />
       </SettingsItem>
 
-      <SettingsItem :title="$t('settings.preserve_for_you_state')" :desc="$t('settings.preserve_for_you_state_desc')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.preserve_for_you_state')"
+        :desc="$t('settings.preserve_for_you_state_desc')"
+        right-width="auto"
+      >
         <Radio v-model="settings.preserveForYouState" />
       </SettingsItem>
 
-      <AppAuthorizationDialog
-        v-if="showQRCodeDialog"
-        @close="handleCloseQRCodeDialog"
-      />
+      <AppAuthorizationDialog v-if="showQRCodeDialog" @close="handleCloseQRCodeDialog" />
     </SettingsItemGroup>
 
     <SettingsItemGroup :title="$t('settings.group_immersive_mode')">
@@ -427,17 +462,28 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
       >
         <Radio v-model="settings.showRecommendationFilterRiskWarning" />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.disable_filters_for_followed_users')" :desc="$t('settings.disable_filters_for_followed_users_desc')" right-width="auto">
+      <SettingsItem :title="$t('settings.disable_filters_for_followed_users')" right-width="auto">
         <Radio v-model="settings.disableFilterForFollowedUser" />
       </SettingsItem>
       <SettingsItem :title="$t('settings.filter_out_vertical_videos')" right-width="auto">
         <Radio v-model="settings.filterOutVerticalVideos" />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.filter_by_view_count')" :desc="$t('settings.filter_by_view_count_desc')" right-width="auto">
-        <div class="filter-control" :class="{ 'filter-control--enabled': settings.enableFilterByViewCount }" flex="~ justify-end">
+      <SettingsItem
+        :title="$t('settings.filter_by_view_count')"
+        :desc="$t('settings.filter_by_view_count_desc')"
+        right-width="auto"
+      >
+        <div
+          class="filter-control"
+          :class="{ 'filter-control--enabled': settings.enableFilterByViewCount }"
+          flex="~ justify-end"
+        >
           <Input
             v-if="settings.enableFilterByViewCount"
-            v-model="settings.filterByViewCount" type="number" :min="1" :max="1000000"
+            v-model="settings.filterByViewCount"
+            type="number"
+            :min="1"
+            :max="1000000"
             flex-1
           >
             <template #suffix>
@@ -447,11 +493,22 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
           <Radio v-model="settings.enableFilterByViewCount" />
         </div>
       </SettingsItem>
-      <SettingsItem :title="$t('settings.filter_by_like_count')" :desc="$t('settings.filter_by_like_count_desc')" right-width="auto">
-        <div class="filter-control" :class="{ 'filter-control--enabled': settings.enableFilterByLikeCount }" flex="~ justify-end">
+      <SettingsItem
+        :title="$t('settings.filter_by_like_count')"
+        :desc="$t('settings.filter_by_like_count_desc')"
+        right-width="auto"
+      >
+        <div
+          class="filter-control"
+          :class="{ 'filter-control--enabled': settings.enableFilterByLikeCount }"
+          flex="~ justify-end"
+        >
           <Input
             v-if="settings.enableFilterByLikeCount"
-            v-model="settings.filterByLikeCount" type="number" :min="1" :max="1000000"
+            v-model="settings.filterByLikeCount"
+            type="number"
+            :min="1"
+            :max="1000000"
             flex-1
           >
             <template #suffix>
@@ -461,11 +518,22 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
           <Radio v-model="settings.enableFilterByLikeCount" />
         </div>
       </SettingsItem>
-      <SettingsItem :title="$t('settings.filter_by_duration')" :desc="$t('settings.filter_by_duration_desc')" right-width="auto">
-        <div class="filter-control" :class="{ 'filter-control--enabled': settings.enableFilterByDuration }" flex="~ justify-end">
+      <SettingsItem
+        :title="$t('settings.filter_by_duration')"
+        :desc="$t('settings.filter_by_duration_desc')"
+        right-width="auto"
+      >
+        <div
+          class="filter-control"
+          :class="{ 'filter-control--enabled': settings.enableFilterByDuration }"
+          flex="~ justify-end"
+        >
           <Input
             v-if="settings.enableFilterByDuration"
-            v-model="settings.filterByDuration" type="number" :min="1" :max="1000000"
+            v-model="settings.filterByDuration"
+            type="number"
+            :min="1"
+            :max="1000000"
             flex-1
           >
             <template #suffix>
@@ -475,11 +543,22 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
           <Radio v-model="settings.enableFilterByDuration" />
         </div>
       </SettingsItem>
-      <SettingsItem :title="$t('settings.filter_by_publish_time')" :desc="$t('settings.filter_by_publish_time_desc')" right-width="auto">
-        <div class="filter-control" :class="{ 'filter-control--enabled': settings.enableFilterByPublishTime }" flex="~ justify-end">
+      <SettingsItem
+        :title="$t('settings.filter_by_publish_time')"
+        :desc="$t('settings.filter_by_publish_time_desc')"
+        right-width="auto"
+      >
+        <div
+          class="filter-control"
+          :class="{ 'filter-control--enabled': settings.enableFilterByPublishTime }"
+          flex="~ justify-end"
+        >
           <Input
             v-if="settings.enableFilterByPublishTime"
-            v-model="settings.filterByPublishTime" type="number" :min="7" :max="365"
+            v-model="settings.filterByPublishTime"
+            type="number"
+            :min="7"
+            :max="365"
             flex-1
           >
             <template #suffix>
@@ -505,7 +584,7 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
                 <template #left>
                   <div i-uil:import />
                 </template>
-                <input type="file" accept=".json" hidden>
+                <input type="file" accept=".json" hidden />
                 {{ $t('common.operation.import') }}
               </Button>
               <Button type="secondary" size="small" @click="handleExportFilterByTitle">
@@ -533,7 +612,7 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
                 <template #left>
                   <div i-uil:import />
                 </template>
-                <input type="file" accept=".json" hidden>
+                <input type="file" accept=".json" hidden />
                 {{ $t('common.operation.import') }}
               </Button>
               <Button type="secondary" size="small" @click="handleExportFilterByUser">
@@ -554,23 +633,39 @@ function handleToggleHomeTab(tab: Settings['homePageTabVisibilityList'][number],
       :title="$t('settings.group_following')"
       :desc="$t('settings.group_following_desc')"
     >
-      <SettingsItem :title="$t('settings.use_following_new_layout')" :desc="$t('settings.use_following_new_layout_desc')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.use_following_new_layout')"
+        :desc="$t('settings.use_following_new_layout_desc')"
+        right-width="auto"
+      >
         <Radio v-model="settings.useFollowingNewLayout" />
       </SettingsItem>
       <SettingsItem :title="$t('settings.following_sort')" right-width="auto">
-        <SettingsSegmentedControl
+        <Select
           v-model="settings.followingUploaderSort"
-          :label="$t('settings.following_sort')"
+          :aria-label="$t('settings.following_sort')"
           :options="followingUploaderSortOptions"
+          w="160px"
         />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.following_tab_show_livestreaming_videos')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.following_tab_show_livestreaming_videos')"
+        right-width="auto"
+      >
         <Radio v-model="settings.followingTabShowLivestreamingVideos" />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.following_filter_charging_videos')" :desc="$t('settings.following_filter_charging_videos_desc')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.following_filter_charging_videos')"
+        :desc="$t('settings.following_filter_charging_videos_desc')"
+        right-width="auto"
+      >
         <Radio v-model="settings.followingFilterChargingVideos" />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.following_filter_dynamic_videos')" :desc="$t('settings.following_filter_dynamic_videos_desc')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.following_filter_dynamic_videos')"
+        :desc="$t('settings.following_filter_dynamic_videos_desc')"
+        right-width="auto"
+      >
         <Radio v-model="settings.followingFilterDynamicVideos" />
       </SettingsItem>
     </SettingsItemGroup>

@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { usePreferredReducedMotion } from '@vueuse/core'
-import { computed, inject, nextTick, ref } from 'vue'
+import { computed, inject, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Draggable from 'vuedraggable'
 
 import Button from '~/components/Button.vue'
 import ChannelIcon from '~/components/TopBar/components/ChannelIcon.vue'
-import { pinnedChannelLayout, validPinnedChannelKeys } from '~/components/TopBar/composables/usePinnedChannels'
+import {
+  pinnedChannelLayout,
+  validPinnedChannelKeys,
+} from '~/components/TopBar/composables/usePinnedChannels'
 import { channelCategories } from '~/components/TopBar/constants/channelCategories'
 import { allChannelConfigs } from '~/components/TopBar/constants/channels'
 import { settings } from '~/logic'
+import { loadSvgIcons } from '~/utils/svgIconsLoader'
 import { getComponentConfig, isComponentVisible } from '~/utils/topBarBadge'
 
 import { pinnedChannelHistoryKey } from '../../composables/usePinnedChannelHistory'
@@ -21,6 +25,31 @@ const manager = ref<HTMLElement>()
 const searchInput = ref<HTMLInputElement>()
 const selectedPanel = ref<HTMLElement>()
 const toggleButton = ref<HTMLButtonElement>()
+
+const injectedSvgSpriteRoots = new WeakSet<ParentNode>()
+
+// 独立设置页首屏不再预注入整份 149 KB SVG 雪碧图，仅当进入顶栏频道管理且当前根尚未挂载时按需加载。
+async function ensureChannelSvgSprite(element: HTMLElement | undefined) {
+  const root = element?.getRootNode()
+  if (!(root instanceof ShadowRoot || root instanceof Document)) return
+  if (injectedSvgSpriteRoots.has(root) || root.querySelector('#channel-ai')) {
+    injectedSvgSpriteRoots.add(root)
+    return
+  }
+
+  injectedSvgSpriteRoots.add(root)
+  const svgIcons = await loadSvgIcons()
+  if (root.querySelector('#channel-ai')) return
+
+  const svgContainer = document.createElement('div')
+  svgContainer.innerHTML = svgIcons
+  if (root instanceof ShadowRoot) root.appendChild(svgContainer)
+  else root.body?.appendChild(svgContainer)
+}
+
+onMounted(() => {
+  void ensureChannelSvgSprite(manager.value)
+})
 function clearSearch() {
   query.value = ''
   searchInput.value?.focus()
@@ -29,28 +58,33 @@ const reducedMotion = usePreferredReducedMotion()
 const category = ref('all')
 const selectedList = ref<{ $el: HTMLElement } | null>(null)
 const history = inject(pinnedChannelHistoryKey)
-if (!history)
-  throw new Error('Pinned channel history requires a settings window')
+if (!history) throw new Error('Pinned channel history requires a settings window')
 const { save, undo, canUndo, externalChange } = history
-const categories = [{ key: 'all', channels: allChannelConfigs.map(channel => channel.key) }, ...channelCategories]
-const categoryKeys = computed(() => new Set(categories.find(group => group.key === category.value)?.channels ?? []))
-const channelMap = new Map(allChannelConfigs.map(channel => [channel.key, channel]))
+const categories = [
+  { key: 'all', channels: allChannelConfigs.map((channel) => channel.key) },
+  ...channelCategories,
+]
+const categoryKeys = computed(
+  () => new Set(categories.find((group) => group.key === category.value)?.channels ?? []),
+)
+const channelMap = new Map(allChannelConfigs.map((channel) => [channel.key, channel]))
 const selected = computed({
-  get: () => validPinnedChannelKeys.value.map(key => channelMap.get(key)!),
-  set: channels => save(channels.map(channel => channel.key)),
+  get: () => validPinnedChannelKeys.value.map((key) => channelMap.get(key)!),
+  set: (channels) => save(channels.map((channel) => channel.key)),
 })
 const candidates = computed(() => {
   const search = query.value.trim().toLocaleLowerCase()
-  return allChannelConfigs.filter(channel =>
-    categoryKeys.value.has(channel.key)
-    && (!search || `${t(channel.nameKey)} ${channel.key}`.toLocaleLowerCase().includes(search)),
+  return allChannelConfigs.filter(
+    (channel) =>
+      categoryKeys.value.has(channel.key) &&
+      (!search || `${t(channel.nameKey)} ${channel.key}`.toLocaleLowerCase().includes(search)),
   )
 })
 function remove(key: string) {
   const index = validPinnedChannelKeys.value.indexOf(key)
   const active = (manager.value?.getRootNode() as ShadowRoot | undefined)?.activeElement
   const restoreFocus = !!active && !!selectedPanel.value?.contains(active)
-  save(settings.value.topBarPinnedChannels.filter(item => item !== key))
+  save(settings.value.topBarPinnedChannels.filter((item) => item !== key))
   if (restoreFocus) {
     void nextTick(() => {
       const rows = selectedList.value?.$el.querySelectorAll<HTMLElement>('[data-selected-channel]')
@@ -60,10 +94,8 @@ function remove(key: string) {
   }
 }
 function toggle(key: string) {
-  if (validPinnedChannelKeys.value.includes(key))
-    remove(key)
-  else
-    save([...settings.value.topBarPinnedChannels, key])
+  if (validPinnedChannelKeys.value.includes(key)) remove(key)
+  else save([...settings.value.topBarPinnedChannels, key])
 }
 function move(index: number, offset: number) {
   const keys = [...validPinnedChannelKeys.value]
@@ -74,26 +106,49 @@ function move(index: number, offset: number) {
   const moved = keys.splice(index, 1)[0]
   keys.splice(target, 0, moved)
   save(keys)
-  void nextTick(() => selectedList.value?.$el.querySelectorAll<HTMLElement>('[data-selected-channel]')[target]?.focus())
+  void nextTick(() =>
+    selectedList.value?.$el
+      .querySelectorAll<HTMLElement>('[data-selected-channel]')
+      [target]?.focus(),
+  )
 }
 function enable() {
   const config = getComponentConfig('pinnedChannels')
-  if (config)
-    config.visible = true
+  if (config) config.visible = true
 }
 </script>
 
 <template>
-  <div ref="manager" class="pinned-manager" :data-settings-title="t('settings.topbar_pinned_channels_title')">
+  <div
+    ref="manager"
+    class="pinned-manager"
+    :data-settings-title="t('settings.topbar_pinned_channels_title')"
+  >
     <div class="pinned-manager__toolbar">
       <span>{{ t('settings.pinned_manager.count', { count: selected.length }) }}</span>
       <span class="pinned-manager__hint" role="status">
-        <template v-if="!isComponentVisible('pinnedChannels')">{{ t('settings.pinned_manager.hidden') }}</template>
+        <template v-if="!isComponentVisible('pinnedChannels')">{{
+          t('settings.pinned_manager.hidden')
+        }}</template>
         <template v-else-if="selected.length">
-          {{ pinnedChannelLayout ? (pinnedChannelLayout.overflowKeys.length ? t('settings.pinned_manager.layout', { visible: pinnedChannelLayout.visibleKeys.length, hidden: pinnedChannelLayout.overflowKeys.length }) : t('settings.pinned_manager.all_visible')) : t('settings.pinned_manager.unavailable') }}
+          {{
+            pinnedChannelLayout
+              ? pinnedChannelLayout.overflowKeys.length
+                ? t('settings.pinned_manager.layout', {
+                    visible: pinnedChannelLayout.visibleKeys.length,
+                    hidden: pinnedChannelLayout.overflowKeys.length,
+                  })
+                : t('settings.pinned_manager.all_visible')
+              : t('settings.pinned_manager.unavailable')
+          }}
         </template>
       </span>
-      <Button v-if="!isComponentVisible('pinnedChannels')" size="small" type="secondary" @click="enable">
+      <Button
+        v-if="!isComponentVisible('pinnedChannels')"
+        size="small"
+        type="secondary"
+        @click="enable"
+      >
         {{ t('settings.pinned_manager.enable') }}
       </Button>
       <button ref="toggleButton" type="button" :aria-expanded="adding" @click="adding = !adding">
@@ -101,23 +156,55 @@ function enable() {
       </button>
     </div>
     <div class="pinned-manager__panels">
-      <section ref="selectedPanel" class="pinned-manager__selection" :aria-label="t('settings.pinned_manager.selected')">
+      <section
+        ref="selectedPanel"
+        class="pinned-manager__selection"
+        :aria-label="t('settings.pinned_manager.selected')"
+      >
         <Draggable
-          ref="selectedList" v-model="selected" item-key="key" handle=".pinned-manager__handle"
-          class="pinned-manager__selected" :animation="reducedMotion === 'reduce' ? 0 : 150"
+          ref="selectedList"
+          v-model="selected"
+          item-key="key"
+          handle=".pinned-manager__handle"
+          class="pinned-manager__selected"
+          :animation="reducedMotion === 'reduce' ? 0 : 150"
         >
           <template #item="{ element, index }">
-            <div class="pinned-manager__row" data-selected-channel tabindex="-1" :aria-label="t(element.nameKey)">
-              <span class="pinned-manager__handle" aria-hidden="true"><i i-mingcute:dots-line /></span>
+            <div
+              class="pinned-manager__row"
+              data-selected-channel
+              tabindex="-1"
+              :aria-label="t(element.nameKey)"
+            >
+              <span class="pinned-manager__handle" aria-hidden="true"
+                ><i i-mingcute:dots-line
+              /></span>
               <ChannelIcon :icon="element.icon" :color="element.color" />
               <span class="pinned-manager__name">{{ t(element.nameKey) }}</span>
-              <button type="button" :disabled="index === 0" :aria-label="t('settings.pinned_manager.move_before', { name: t(element.nameKey) })" :title="t('settings.pinned_manager.move_before', { name: t(element.nameKey) })" @click="move(index, -1)">
+              <button
+                type="button"
+                :disabled="index === 0"
+                :aria-label="t('settings.pinned_manager.move_before', { name: t(element.nameKey) })"
+                :title="t('settings.pinned_manager.move_before', { name: t(element.nameKey) })"
+                @click="move(index, -1)"
+              >
                 <i i-mingcute:up-line aria-hidden="true" />
               </button>
-              <button type="button" :disabled="index === selected.length - 1" :aria-label="t('settings.pinned_manager.move_after', { name: t(element.nameKey) })" :title="t('settings.pinned_manager.move_after', { name: t(element.nameKey) })" @click="move(index, 1)">
+              <button
+                type="button"
+                :disabled="index === selected.length - 1"
+                :aria-label="t('settings.pinned_manager.move_after', { name: t(element.nameKey) })"
+                :title="t('settings.pinned_manager.move_after', { name: t(element.nameKey) })"
+                @click="move(index, 1)"
+              >
                 <i i-mingcute:down-line aria-hidden="true" />
               </button>
-              <button type="button" :aria-label="t('settings.pinned_manager.remove', { name: t(element.nameKey) })" :title="t('settings.pinned_manager.remove', { name: t(element.nameKey) })" @click="remove(element.key)">
+              <button
+                type="button"
+                :aria-label="t('settings.pinned_manager.remove', { name: t(element.nameKey) })"
+                :title="t('settings.pinned_manager.remove', { name: t(element.nameKey) })"
+                @click="remove(element.key)"
+              >
                 <i i-mingcute:close-line aria-hidden="true" />
               </button>
             </div>
@@ -138,28 +225,61 @@ function enable() {
           {{ t('settings.pinned_manager.history_reset') }}
         </p>
       </section>
-      <section v-show="adding" class="pinned-manager__picker" :aria-label="t('settings.pinned_manager.add')">
+      <section
+        v-show="adding"
+        class="pinned-manager__picker"
+        :aria-label="t('settings.pinned_manager.add')"
+      >
         <div class="pinned-manager__picker-controls">
           <div class="pinned-manager__toolbar pinned-manager__search">
-            <input ref="searchInput" v-model="query" type="search" :placeholder="t('settings.pinned_manager.search')" :aria-label="t('settings.pinned_manager.search')">
-            <button v-if="query" type="button" :aria-label="t('settings.pinned_manager.clear_search')" :title="t('settings.pinned_manager.clear_search')" @click="clearSearch">
+            <input
+              ref="searchInput"
+              v-model="query"
+              type="search"
+              :placeholder="t('settings.pinned_manager.search')"
+              :aria-label="t('settings.pinned_manager.search')"
+            />
+            <button
+              v-if="query"
+              type="button"
+              :aria-label="t('settings.pinned_manager.clear_search')"
+              :title="t('settings.pinned_manager.clear_search')"
+              @click="clearSearch"
+            >
               <i i-mingcute:close-line aria-hidden="true" />
             </button>
           </div>
-          <div class="pinned-manager__categories bew-segment-control bew-segment-control--static" role="group" :aria-label="t('settings.pinned_manager.categories')">
+          <div
+            class="pinned-manager__categories bew-segment-control bew-segment-control--static"
+            role="group"
+            :aria-label="t('settings.pinned_manager.categories')"
+          >
             <button
-              v-for="group in categories" :key="group.key" type="button" class="bew-segment-control__item" :data-active="category === group.key"
-              :aria-pressed="category === group.key" @click="category = group.key"
+              v-for="group in categories"
+              :key="group.key"
+              type="button"
+              class="bew-segment-control__item"
+              :data-active="category === group.key"
+              :aria-pressed="category === group.key"
+              @click="category = group.key"
             >
               {{ t(`settings.pinned_manager.${group.key}`) }}
             </button>
           </div>
         </div>
         <div class="pinned-manager__candidates">
-          <button v-for="channel in candidates" :key="channel.key" type="button" :aria-pressed="validPinnedChannelKeys.includes(channel.key)" @click="toggle(channel.key)">
+          <button
+            v-for="channel in candidates"
+            :key="channel.key"
+            type="button"
+            :aria-pressed="validPinnedChannelKeys.includes(channel.key)"
+            @click="toggle(channel.key)"
+          >
             <ChannelIcon :icon="channel.icon" :color="channel.color" />
             <span class="pinned-manager__name">{{ t(channel.nameKey) }}</span>
-            <span class="pinned-manager__check" aria-hidden="true">{{ validPinnedChannelKeys.includes(channel.key) ? '✓' : '' }}</span>
+            <span class="pinned-manager__check" aria-hidden="true">{{
+              validPinnedChannelKeys.includes(channel.key) ? '✓' : ''
+            }}</span>
           </button>
           <div v-if="!candidates.length" class="pinned-manager__empty">
             <p>{{ t('settings.pinned_manager.no_results') }}</p>
@@ -193,7 +313,7 @@ function enable() {
     opacity: 0.45;
     cursor: not-allowed;
   }
-  button[aria-pressed="true"] {
+  button[aria-pressed='true'] {
     background: var(--bew-theme-color-20);
   }
 }
@@ -297,7 +417,7 @@ function enable() {
     border-radius: var(--bew-radius-full);
     padding-inline: var(--bew-space-3);
     background: var(--bew-fill-1);
-    &[aria-pressed="true"] {
+    &[aria-pressed='true'] {
       background: var(--bew-theme-color-20);
     }
     &:hover {

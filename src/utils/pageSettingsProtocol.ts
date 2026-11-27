@@ -1,3 +1,9 @@
+import type { CommentAiFilterDisplayMode } from '~/utils/commentAiFilter'
+import {
+  normalizeCommentAiFilterBatchSize,
+  normalizeCommentAiFilterDisplayMode,
+} from '~/utils/commentAiFilter'
+
 export type PageCommentReplyTreeMode = 'lineCollapseMain' | 'lineKeepMain' | 'indentOnly'
 export type PageCommentReplyPaginationMode = 'loadMore' | 'pagination'
 
@@ -13,11 +19,16 @@ export interface PageSettingsPayload {
   adjustCommentImageHeight: boolean
   cleanShareLinkIncludeTitle: boolean
   cleanShareLinkRemoveTrackingParams: boolean
+  commentAiFilterAutoScan: boolean
+  commentAiFilterBatchSize: number
+  commentAiFilterDisplayMode: CommentAiFilterDisplayMode
+  commentAiFilterIncludeReplies: boolean
   commentReplyPaginationMode: PageCommentReplyPaginationMode
   commentReplyTreeContainerHeight: number
   commentReplyTreeMode: PageCommentReplyTreeMode
   depersonalizeSearchResults: boolean
   enableCleanShareLink: boolean
+  enableCommentAiFilter: boolean
   enableCommentReplyTreeContainer: boolean
   enableCommentReplyTreeDisplay: boolean
   language: string
@@ -45,22 +56,24 @@ function isCommentReplyTreeContainerHeight(value: unknown): value is number {
 }
 
 export function createPageSettingsPayload(value: unknown): PageSettingsPayload | null {
-  if (!isRecord(value)
-    || typeof value.adjustCommentImageHeight !== 'boolean'
-    || typeof value.cleanShareLinkIncludeTitle !== 'boolean'
-    || typeof value.cleanShareLinkRemoveTrackingParams !== 'boolean'
-    || !isCommentReplyPaginationMode(value.commentReplyPaginationMode)
-    || !isCommentReplyTreeContainerHeight(value.commentReplyTreeContainerHeight)
-    || !isCommentReplyTreeMode(value.commentReplyTreeMode)
-    || typeof value.depersonalizeSearchResults !== 'boolean'
-    || typeof value.enableCleanShareLink !== 'boolean'
-    || typeof value.enableCommentReplyTreeContainer !== 'boolean'
-    || typeof value.enableCommentReplyTreeDisplay !== 'boolean'
-    || typeof value.language !== 'string'
-    || typeof value.preventMobileRedirect !== 'boolean'
-    || typeof value.showCommentHostTag !== 'boolean'
-    || typeof value.showIPLocation !== 'boolean'
-    || typeof value.showSex !== 'boolean') {
+  if (
+    !isRecord(value) ||
+    typeof value.adjustCommentImageHeight !== 'boolean' ||
+    typeof value.cleanShareLinkIncludeTitle !== 'boolean' ||
+    typeof value.cleanShareLinkRemoveTrackingParams !== 'boolean' ||
+    !isCommentReplyPaginationMode(value.commentReplyPaginationMode) ||
+    !isCommentReplyTreeContainerHeight(value.commentReplyTreeContainerHeight) ||
+    !isCommentReplyTreeMode(value.commentReplyTreeMode) ||
+    typeof value.depersonalizeSearchResults !== 'boolean' ||
+    typeof value.enableCleanShareLink !== 'boolean' ||
+    typeof value.enableCommentReplyTreeContainer !== 'boolean' ||
+    typeof value.enableCommentReplyTreeDisplay !== 'boolean' ||
+    typeof value.language !== 'string' ||
+    typeof value.preventMobileRedirect !== 'boolean' ||
+    typeof value.showCommentHostTag !== 'boolean' ||
+    typeof value.showIPLocation !== 'boolean' ||
+    typeof value.showSex !== 'boolean'
+  ) {
     return null
   }
 
@@ -70,26 +83,38 @@ export function createPageSettingsPayload(value: unknown): PageSettingsPayload |
 
   return {
     localLoudnessEnabled: playerEnabled && value.localLoudnessEnabled === true,
-    localLoudnessTarget: typeof value.localLoudnessTarget === 'number' && Number.isFinite(value.localLoudnessTarget)
-      ? Math.max(-24, Math.min(-14, value.localLoudnessTarget))
-      : -18,
-    localLoudnessStrength: typeof value.localLoudnessStrength === 'number' && Number.isFinite(value.localLoudnessStrength)
-      ? Math.max(40, Math.min(100, value.localLoudnessStrength))
-      : 75,
+    localLoudnessTarget:
+      typeof value.localLoudnessTarget === 'number' && Number.isFinite(value.localLoudnessTarget)
+        ? Math.max(-24, Math.min(-14, value.localLoudnessTarget))
+        : -18,
+    localLoudnessStrength:
+      typeof value.localLoudnessStrength === 'number' &&
+      Number.isFinite(value.localLoudnessStrength)
+        ? Math.max(40, Math.min(100, value.localLoudnessStrength))
+        : 75,
     // 页面脚本会再次校验已转换的 payload，此时直接沿用字段。
-    audioDelayEnabled: playerEnabled && (value.audioDelayEnabled === true || value.playerAudioDelayEnabled === true),
-    observeTripleRequests: value.observeTripleRequests === true
-      || (value.favoriteOrganizerSyncAfterTriple === true
-        && Array.isArray(value.favoriteOrganizerFolders)
-        && value.favoriteOrganizerFolders.length > 0),
+    audioDelayEnabled:
+      playerEnabled && (value.audioDelayEnabled === true || value.playerAudioDelayEnabled === true),
+    observeTripleRequests:
+      value.observeTripleRequests === true ||
+      (value.favoriteOrganizerSyncAfterTriple === true &&
+        Array.isArray(value.favoriteOrganizerFolders) &&
+        value.favoriteOrganizerFolders.length > 0),
     adjustCommentImageHeight: commentsEnabled && value.adjustCommentImageHeight,
     cleanShareLinkIncludeTitle: value.cleanShareLinkIncludeTitle,
     cleanShareLinkRemoveTrackingParams: value.cleanShareLinkRemoveTrackingParams,
+    commentAiFilterAutoScan: value.commentAiFilterAutoScan !== false,
+    commentAiFilterBatchSize: normalizeCommentAiFilterBatchSize(value.commentAiFilterBatchSize),
+    commentAiFilterDisplayMode: normalizeCommentAiFilterDisplayMode(
+      value.commentAiFilterDisplayMode,
+    ),
+    commentAiFilterIncludeReplies: value.commentAiFilterIncludeReplies !== false,
     commentReplyPaginationMode: value.commentReplyPaginationMode,
     commentReplyTreeContainerHeight: value.commentReplyTreeContainerHeight,
     commentReplyTreeMode: value.commentReplyTreeMode,
     depersonalizeSearchResults: value.depersonalizeSearchResults,
     enableCleanShareLink: value.enableCleanShareLink,
+    enableCommentAiFilter: commentsEnabled && value.enableCommentAiFilter === true,
     enableCommentReplyTreeContainer: commentsEnabled && value.enableCommentReplyTreeContainer,
     enableCommentReplyTreeDisplay: commentsEnabled && value.enableCommentReplyTreeDisplay,
     language: value.language,
@@ -116,14 +141,14 @@ const PAGE_BOOT_SNAPSHOT_KEY = 'bewlycat:page-boot'
 export function readPageBootSnapshot(): Partial<PageBootSnapshot> | null {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(PAGE_BOOT_SNAPSHOT_KEY) ?? 'null')
-    if (!isRecord(value))
-      return null
+    if (!isRecord(value)) return null
     return {
-      preventMobileRedirect: typeof value.preventMobileRedirect === 'boolean' ? value.preventMobileRedirect : undefined,
-      skipConciseDanmaku: typeof value.skipConciseDanmaku === 'boolean' ? value.skipConciseDanmaku : undefined,
+      preventMobileRedirect:
+        typeof value.preventMobileRedirect === 'boolean' ? value.preventMobileRedirect : undefined,
+      skipConciseDanmaku:
+        typeof value.skipConciseDanmaku === 'boolean' ? value.skipConciseDanmaku : undefined,
     }
-  }
-  catch {
+  } catch {
     return null
   }
 }
@@ -137,8 +162,7 @@ export function writePageBootSnapshot(settings: PageSettingsPayload) {
     const value = JSON.stringify(snapshot)
     if (localStorage.getItem(PAGE_BOOT_SNAPSHOT_KEY) !== value)
       localStorage.setItem(PAGE_BOOT_SNAPSHOT_KEY, value)
-  }
-  catch {
+  } catch {
     // 存储不可用时下次加载按默认行为安装钩子
   }
 }

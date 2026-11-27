@@ -31,7 +31,6 @@
   .bpx-player-video-inputbar-wrap,
   .bilibili-player-video-sendbar,
   .bilibili-player-video-inputbar,
-  [class*="NanoPlayer_nonoPlayerSendingBar"],
   .bpx-player-sending-area::before,
   .bpx-player-sending-area::after {
     background: transparent !important;
@@ -54,11 +53,14 @@
   .right-container-inner,
   .up-info-container,
   .members-info-container,
+  .membersinfo-normal,
+  .membersinfo-normal .header,
+  .membersinfo-normal .container,
   .membersinfo-upcard-wrap,
+  .membersinfo-upcard,
   .video-desc-container,
   .bpx-player-dm-wrap,
   #danmukuBox,
-  [class*="DanmukuBox_wrap"],
   .danmaku-box,
   .danmaku-wrap,
   .bpx-docker,
@@ -68,7 +70,7 @@
   .bpx-player-collapse .bui-collapse-wrap,
   .bpx-player-collapse .bui-collapse-header,
   .bpx-player-collapse .bui-collapse-body,
-  :is(#danmukuBox, [class*="DanmukuBox_wrap"], .danmaku-box, .danmaku-wrap)
+  :is(#danmukuBox, .danmaku-box, .danmaku-wrap)
     :is(
       .bui-collapse-wrap,
       .bui-collapse-header,
@@ -178,9 +180,24 @@
     box-shadow: none !important;
   }
 
-  [class*="eplist_ep_list_wrapper"],
-  [class*="PaginatedEpList_root"],
-  [class*="SectionPanel_panel"],
+  [class*='NanoPlayer_nonoPlayerSendingBar'],
+  [class*='DanmukuBox_wrap'],
+  [class*='DanmukuBox_wrap']
+    :is(
+      .bui-collapse-wrap,
+      .bui-collapse-header,
+      .bui-collapse-body,
+      .bui-area,
+      .bpx-player-wraplist,
+      .bpx-player-filter-wrap,
+      .bpx-player-dm-container,
+      .bui-long-list-wrap,
+      .bui-long-list-list,
+      .bui-long-list-item
+    ),
+  [class*='eplist_ep_list_wrapper'],
+  [class*='PaginatedEpList_root'],
+  [class*='SectionPanel_panel'],
   #eplist_module,
   :is(.main-container, #bewly-widescreen-root) .ep-list-wrapper,
   .ep-section-module {
@@ -189,12 +206,12 @@
   }
 
   // 选集栏横向展开遮罩与简介省略号渐变原先写死实色背景，玻璃底上会露出色块
-  [class*="SectionSelector_SectionSelector"] [class*="SectionSelector_expand"],
-  [class*="mediainfo_mediaRight"]
-    [class*="mediainfo_media_desc_section"]
-    [class*="mediainfo_display_area"]
-    [class*="mediainfo_ellipsis"],
-  [class*="mediainfo_mediaRight"] [class*="mediainfo_media_desc"] i,
+  [class*='SectionSelector_SectionSelector'] [class*='SectionSelector_expand'],
+  [class*='mediainfo_mediaRight']
+    [class*='mediainfo_media_desc_section']
+    [class*='mediainfo_display_area']
+    [class*='mediainfo_ellipsis'],
+  [class*='mediainfo_mediaRight'] [class*='mediainfo_media_desc'] i,
   :is(.main-container, #bewly-widescreen-root) .media-info .media-right .media-desc i {
     background: transparent !important;
   }

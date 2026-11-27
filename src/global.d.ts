@@ -1,9 +1,15 @@
 declare const __DEV__: boolean
 declare const __BUILD_COMMIT__: string
+declare const browser: typeof import('webextension-polyfill')
 
 declare module '*.vue' {
   const component: any
   export default component
+}
+
+declare module '*.yml' {
+  const messages: Record<string, any>
+  export default messages
 }
 
 declare module 'virtual:bewly-inject-messages' {

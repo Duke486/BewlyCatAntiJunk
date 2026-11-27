@@ -5,9 +5,11 @@ import { useI18n } from 'vue-i18n'
 import Icon from '~/components/Icon.vue'
 import LiquidSegmentIndicator from '~/components/LiquidSegmentIndicator.vue'
 import { useBewlyApp } from '~/composables/useAppProvider'
+import { useDark } from '~/composables/useDark'
 import { provideHomeTabCache } from '~/composables/useHomeTabState'
 import { useLayoutEditMode } from '~/composables/useLayoutEditMode'
-import { OVERLAY_SCROLL_BAR_SCROLL, TOP_BAR_VISIBILITY_CHANGE } from '~/constants/globalEvents'
+import { OVERLAY_SCROLL_BAR_SCROLL } from '~/constants/globalEvents'
+import { VideoPageTopBarConfig } from '~/enums/appEnums'
 import { gridLayout, settings } from '~/logic'
 import { parseDedeUserID } from '~/logic/loginStatus'
 import type { ForYouState } from '~/stores/forYouStore'
@@ -17,7 +19,13 @@ import { useMainStore } from '~/stores/mainStore'
 import { useTopBarStore } from '~/stores/topBarStore'
 import { cancelProgrammaticScroll, jumpScrollTo } from '~/utils/main'
 import emitter from '~/utils/mitt'
-import { applyRecommendationModeOption, createRecommendationModeOptions, filterRecommendationModeSwitcherOptions, getRecommendationModeOption } from '~/utils/recommendationMode'
+import {
+  applyRecommendationModeOption,
+  createRecommendationModeOptions,
+  filterRecommendationModeSwitcherOptions,
+  getRecommendationModeOption,
+} from '~/utils/recommendationMode'
+import { getEffectiveSearchPageWallpaper, resolveWallpaperSource } from '~/utils/wallpaper'
 
 import RecommendationFilterEntry from './components/RecommendationFilterEntry.vue'
 import VersionReminder from './components/VersionReminder.vue'
@@ -29,6 +37,7 @@ const mainStore = useMainStore()
 const topBarStore = useTopBarStore()
 const forYouStore = useForYouStore()
 const { t } = useI18n()
+const { isDark } = useDark()
 const { isLayoutEditing } = useLayoutEditMode()
 const {
   handleBackToTop,
@@ -37,7 +46,10 @@ const {
   isHomeTabSwitching,
   scrollViewportRef,
 } = useBewlyApp()
-const handleThrottledBackToTop = useThrottleFn((targetScrollTop: number = 0) => handleBackToTop(targetScrollTop), 1000)
+const handleThrottledBackToTop = useThrottleFn(
+  (targetScrollTop: number = 0) => handleBackToTop(targetScrollTop),
+  1000,
+)
 
 // ✅ 性能优化：缓存 scrollTop 值，避免重复 DOM 读取
 const cachedScrollTop = ref(0)
@@ -59,9 +71,7 @@ const weeklyPage = defineAsyncComponent(() => import('./components/Weekly.vue'))
 const livePage = defineAsyncComponent(() => import('./components/Live.vue'))
 const pages = computed(() => ({
   [HomeSubPage.ForYou]: forYouPage,
-  [HomeSubPage.Following]: settings.value.useFollowingNewLayout
-    ? followingPage
-    : followingOldPage,
+  [HomeSubPage.Following]: settings.value.useFollowingNewLayout ? followingPage : followingOldPage,
   [HomeSubPage.SubscribedSeries]: subscribedSeriesPage,
   [HomeSubPage.Trending]: trendingPage,
   [HomeSubPage.Ranking]: rankingPage,
@@ -71,33 +81,78 @@ const pages = computed(() => ({
 }))
 // App 单列 / 双列返回不同卡片，按界面上的推荐模式选项区分个性推荐缓存
 const forYouCacheKey = computed(() => `${HomeSubPage.ForYou}:${getRecommendationModeOption()}`)
-const activatedPageCacheKey = computed(() => activatedPage.value === HomeSubPage.Following
-  ? `${activatedPage.value}:${settings.value.useFollowingNewLayout ? 'new' : 'old'}`
-  : activatedPage.value === HomeSubPage.ForYou
-    ? forYouCacheKey.value
-    : activatedPage.value)
+const activatedPageCacheKey = computed(() =>
+  activatedPage.value === HomeSubPage.Following
+    ? `${activatedPage.value}:${settings.value.useFollowingNewLayout ? 'new' : 'old'}`
+    : activatedPage.value === HomeSubPage.ForYou
+      ? forYouCacheKey.value
+      : activatedPage.value,
+)
 const cacheRevision = ref(0)
-const tabCache = provideHomeTabCache(() => activatedPageCacheKey.value, restoreTabScrollPosition, keepTabContentInView, () => preserveSwitchPosition)
+const tabCache = provideHomeTabCache(
+  () => activatedPageCacheKey.value,
+  restoreTabScrollPosition,
+  keepTabContentInView,
+  () => preserveSwitchPosition,
+)
 const tabContentLoading = ref<boolean>(false)
 const currentTabs = ref<HomeTab[]>([])
 const tabPageRef = ref()
-const topBarVisibility = ref<boolean>(true)
+const isTopBarAutoHidden = computed(
+  () =>
+    topBarStore.showTopBar &&
+    !isLayoutEditing.value &&
+    settings.value.otherPageTopBarConfig !== VideoPageTopBarConfig.AlwaysShow &&
+    !topBarStore.topBarVisible,
+)
+const topBarVisibility = computed(() => !isTopBarAutoHidden.value)
+const shouldPinHomeHeaderToTop = computed(
+  () => settings.value.fixedHomeTabsOnHomePage && isTopBarAutoHidden.value,
+)
+const isShowOnMouseTopBar = computed(
+  () =>
+    topBarStore.showTopBar &&
+    settings.value.otherPageTopBarConfig === VideoPageTopBarConfig.ShowOnMouse,
+)
 const shouldShowHomeTabs = computed(() => currentTabs.value.length > 1)
-const shouldShowRecommendationModeSwitcher = computed(() => (isLayoutEditing.value || settings.value.showRecommendationModeSwitcher) && activatedPage.value === HomeSubPage.ForYou)
-const shouldShowImmersiveModeEntry = computed(() => (isLayoutEditing.value || settings.value.showImmersiveModeEntry) && activatedPage.value === HomeSubPage.ForYou)
-const shouldShowRecommendationFilterEntry = computed(() => settings.value.showRecommendationFilterEntry && activatedPage.value === HomeSubPage.ForYou)
-const shouldShowHomeHeader = computed(() => shouldShowHomeTabs.value
-  || shouldShowRecommendationModeSwitcher.value
-  || shouldShowImmersiveModeEntry.value
-  || shouldShowRecommendationFilterEntry.value
-  || settings.value.enableGridLayoutSwitcher)
-const recommendationModeOptions = computed(() => filterRecommendationModeSwitcherOptions(createRecommendationModeOptions(t)))
+const shouldShowRecommendationModeSwitcher = computed(
+  () =>
+    (isLayoutEditing.value || settings.value.showRecommendationModeSwitcher) &&
+    activatedPage.value === HomeSubPage.ForYou,
+)
+const shouldShowImmersiveModeEntry = computed(
+  () =>
+    (isLayoutEditing.value || settings.value.showImmersiveModeEntry) &&
+    activatedPage.value === HomeSubPage.ForYou,
+)
+const shouldShowRecommendationFilterEntry = computed(
+  () => settings.value.showRecommendationFilterEntry && activatedPage.value === HomeSubPage.ForYou,
+)
+const shouldShowHomeHeader = computed(
+  () =>
+    shouldShowHomeTabs.value ||
+    shouldShowRecommendationModeSwitcher.value ||
+    shouldShowImmersiveModeEntry.value ||
+    shouldShowRecommendationFilterEntry.value ||
+    settings.value.enableGridLayoutSwitcher,
+)
+const recommendationModeOptions = computed(() =>
+  filterRecommendationModeSwitcherOptions(createRecommendationModeOptions(t)),
+)
 const activeRecommendationModeOption = computed(() => getRecommendationModeOption())
 const gridLayoutIcons = computed((): GridLayoutIcon[] => {
   return [
     { icon: 'mingcute:table-3-line', iconActivated: 'mingcute:table-3-fill', value: 'adaptive' },
-    { icon: 'mingcute:layout-grid-line', iconActivated: 'mingcute:layout-grid-fill', value: 'twoColumns' },
-    { icon: 'mingcute:list-check-3-line', iconActivated: 'mingcute:list-check-3-fill', value: 'oneColumn' },
+    {
+      icon: 'mingcute:layout-grid-line',
+      iconActivated: 'mingcute:layout-grid-fill',
+      value: 'twoColumns',
+    },
+    {
+      icon: 'mingcute:list-check-3-line',
+      iconActivated: 'mingcute:list-check-3-fill',
+      value: 'oneColumn',
+    },
   ]
 })
 
@@ -109,10 +164,12 @@ watch(currentTabs, () => {
   void tabsIndicatorRef.value?.updateIndicator(true)
 })
 
-watch(() => settings.value.enableGridLayoutSwitcher, (enabled) => {
-  if (enabled)
-    void gridIndicatorRef.value?.updateIndicator(true)
-})
+watch(
+  () => settings.value.enableGridLayoutSwitcher,
+  (enabled) => {
+    if (enabled) void gridIndicatorRef.value?.updateIndicator(true)
+  },
+)
 
 watch(recommendationModeOptions, () => {
   void recommendationModeIndicatorRef.value?.updateIndicator(true)
@@ -123,16 +180,20 @@ watch(recommendationModeOptions, () => {
 // failed with -101 (for example after QR-code login) is fetched immediately.
 // 首次资料返回前用 Cookie 中的账号作为基准，避免补齐 mid 被误判为换号，
 // 重建首页并将搜索区域滚出视口。真正登录、登出或换号仍会清理缓存。
-watch(() => topBarStore.isLogin
-  ? topBarStore.userInfo.mid ?? parseDedeUserID(document.cookie)
-  : undefined, () => {
-  // A new account must never restore a previous account's feed or filters.
-  tabCache.clear()
-  forYouStore.resetState()
-  tabScrollPositions.clear()
-  pendingTabScrollTop = getHomeContentScrollTop()
-  cacheRevision.value++
-})
+watch(
+  () =>
+    topBarStore.isLogin
+      ? (topBarStore.userInfo.mid ?? parseDedeUserID(document.cookie))
+      : undefined,
+  () => {
+    // A new account must never restore a previous account's feed or filters.
+    tabCache.clear()
+    forYouStore.resetState()
+    tabScrollPositions.clear()
+    pendingTabScrollTop = getHomeContentScrollTop()
+    cacheRevision.value++
+  },
+)
 
 // 切换栏目时旧内容已卸载、新列表还没撑开，滚动范围不足会把定位截断回顶部，
 // 因此搜索页模式下始终保留足够高度，让每个栏目都能落到搜索区域下方。
@@ -142,12 +203,10 @@ const homeMainStyle = computed(() => {
 })
 
 function restoreTabScrollPosition() {
-  if (pendingTabScrollTop === null)
-    return
+  if (pendingTabScrollTop === null) return
 
   const viewport = scrollViewportRef.value
-  if (viewport)
-    jumpScrollTo(viewport, pendingTabScrollTop)
+  if (viewport) jumpScrollTo(viewport, pendingTabScrollTop)
 
   pendingTabScrollTop = null
 }
@@ -157,8 +216,7 @@ function restoreTabScrollPosition() {
 function keepTabContentInView() {
   const viewport = scrollViewportRef.value
   const minScrollTop = getHomeContentScrollTop()
-  if (viewport && viewport.scrollTop < minScrollTop)
-    jumpScrollTo(viewport, minScrollTop)
+  if (viewport && viewport.scrollTop < minScrollTop) jumpScrollTo(viewport, minScrollTop)
 }
 
 function finishTabSwitch() {
@@ -170,57 +228,69 @@ function finishTabSwitch() {
   })
 }
 
-watch(activatedPageCacheKey, (newPage, oldPage) => {
-  const viewport = scrollViewportRef.value
-  if (!viewport)
-    return
+watch(
+  activatedPageCacheKey,
+  (newPage, oldPage) => {
+    const viewport = scrollViewportRef.value
+    if (!viewport) return
 
-  // Release the animation and anchor guard before restoring the destination tab.
-  cancelProgrammaticScroll(viewport)
+    // Release the animation and anchor guard before restoring the destination tab.
+    cancelProgrammaticScroll(viewport)
 
-  // During a rapid switch the viewport may still belong to the outgoing tab.
-  if (pendingTabScrollTop === null && oldPage.startsWith(`${HomeSubPage.ForYou}:`))
-    tabScrollPositions.set(oldPage, Math.max(viewport.scrollTop, getHomeContentScrollTop()))
-  // Only ForYou restores its list. Freshly fetched feeds must not inherit a
-  // scroll offset (or trigger pagination) from a different set of videos.
-  const initialScrollTop = getHomeContentScrollTop()
-  const destinationScrollTop = newPage.startsWith(`${HomeSubPage.ForYou}:`)
-    ? tabScrollPositions.get(newPage) ?? initialScrollTop
-    : initialScrollTop
-  // 搜索页模式下栏目栏仍在视野内时保持当前位置；当前已滚动较深，或目标栏目
-  // 有较深的浏览位置时，仍按目标栏目的原状态恢复。快速连切时滚动容器尚未
-  // 被改写，每次都按最新目标重新判断。
-  preserveSwitchPosition = settings.value.useSearchPageModeOnHomePage
-    && isWithinHomeContentStart(viewport.scrollTop)
-    && isWithinHomeContentStart(destinationScrollTop)
-  pendingTabScrollTop = preserveSwitchPosition ? viewport.scrollTop : destinationScrollTop
-  isHomeTabSwitching.value = true
-}, { flush: 'sync' })
+    // During a rapid switch the viewport may still belong to the outgoing tab.
+    if (pendingTabScrollTop === null && oldPage.startsWith(`${HomeSubPage.ForYou}:`))
+      tabScrollPositions.set(oldPage, Math.max(viewport.scrollTop, getHomeContentScrollTop()))
+    // Only ForYou restores its list. Freshly fetched feeds must not inherit a
+    // scroll offset (or trigger pagination) from a different set of videos.
+    const initialScrollTop = getHomeContentScrollTop()
+    const destinationScrollTop = newPage.startsWith(`${HomeSubPage.ForYou}:`)
+      ? (tabScrollPositions.get(newPage) ?? initialScrollTop)
+      : initialScrollTop
+    // 搜索页模式下栏目栏仍在视野内时保持当前位置；当前已滚动较深，或目标栏目
+    // 有较深的浏览位置时，仍按目标栏目的原状态恢复。快速连切时滚动容器尚未
+    // 被改写，每次都按最新目标重新判断。
+    preserveSwitchPosition =
+      settings.value.useSearchPageModeOnHomePage &&
+      isWithinHomeContentStart(viewport.scrollTop) &&
+      isWithinHomeContentStart(destinationScrollTop)
+    pendingTabScrollTop = preserveSwitchPosition ? viewport.scrollTop : destinationScrollTop
+    isHomeTabSwitching.value = true
+  },
+  { flush: 'sync' },
+)
 
 // 使用deep监听
-watch(() => settings.value.homePageTabVisibilityList, () => {
-  syncCurrentTabs()
-}, { deep: true })
+watch(
+  () => settings.value.homePageTabVisibilityList,
+  () => {
+    syncCurrentTabs()
+  },
+  { deep: true },
+)
 
 function handleOverlayScroll(scrollTop: number) {
   cachedScrollTop.value = scrollTop
 }
 
-function handleTopBarVisibilityChange(visible: boolean) {
-  topBarVisibility.value = visible
-}
-
 function computeTabs(): HomeTab[] {
   // if homePageTabVisibilityList not fresh , set it to default
-  if (!settings.value.homePageTabVisibilityList.length || settings.value.homePageTabVisibilityList.length !== mainStore.homeTabs.length)
-    settings.value.homePageTabVisibilityList = mainStore.homeTabs.map(tab => ({ page: tab.page, visible: tab.page !== HomeSubPage.Precious }))
+  if (
+    !settings.value.homePageTabVisibilityList.length ||
+    settings.value.homePageTabVisibilityList.length !== mainStore.homeTabs.length
+  )
+    settings.value.homePageTabVisibilityList = mainStore.homeTabs.map((tab) => ({
+      page: tab.page,
+      visible: tab.page !== HomeSubPage.Precious,
+    }))
 
   const targetTabs: HomeTab[] = []
 
   for (const tab of settings.value.homePageTabVisibilityList) {
     if (tab.visible) {
       targetTabs.push({
-        i18nKey: (mainStore.homeTabs.find(defaultTab => defaultTab.page === tab.page) || {})?.i18nKey || tab.page,
+        i18nKey:
+          (mainStore.homeTabs.find((defaultTab) => defaultTab.page === tab.page) || {})?.i18nKey ||
+          tab.page,
         page: tab.page,
       })
     }
@@ -234,7 +304,7 @@ function syncCurrentTabs() {
   currentTabs.value = nextTabs
 
   const fallbackPage = nextTabs[0]?.page || mainStore.homeTabs[0].page
-  if (!nextTabs.some(tab => tab.page === activatedPage.value)) {
+  if (!nextTabs.some((tab) => tab.page === activatedPage.value)) {
     activatedPage.value = fallbackPage
     homeActivatedPage.value = fallbackPage
   }
@@ -243,7 +313,6 @@ function syncCurrentTabs() {
 onMounted(() => {
   // ✅ 性能优化：订阅滚动事件以缓存 scrollTop，避免后续 DOM 读取
   emitter.on(OVERLAY_SCROLL_BAR_SCROLL, handleOverlayScroll)
-  emitter.on(TOP_BAR_VISIBILITY_CHANGE, handleTopBarVisibilityChange)
 
   syncCurrentTabs()
 })
@@ -251,7 +320,6 @@ onMounted(() => {
 onUnmounted(() => {
   preserveInactiveForYouState()
   tabCache.clear()
-  emitter.off(TOP_BAR_VISIBILITY_CHANGE, handleTopBarVisibilityChange)
   emitter.off(OVERLAY_SCROLL_BAR_SCROLL, handleOverlayScroll)
   isHomeTabSwitching.value = false
 })
@@ -259,16 +327,16 @@ onUnmounted(() => {
 // The existing Dock retention setting also applies when Home is left from
 // another tab. Transfer its data snapshot to the store before clearing Home.
 function preserveInactiveForYouState() {
-  if (!settings.value.preserveForYouState || activatedPage.value === HomeSubPage.ForYou)
-    return
+  if (!settings.value.preserveForYouState || activatedPage.value === HomeSubPage.ForYou) return
   const mode = settings.value.recommendationMode
   const key = forYouCacheKey.value
-  const snapshot = tabCache.take(key) as (Partial<ForYouState> & {
-    hasInitializedData?: boolean
-    webRecommendationUniqId?: string
-  }) | undefined
-  if (!snapshot)
-    return
+  const snapshot = tabCache.take(key) as
+    | (Partial<ForYouState> & {
+        hasInitializedData?: boolean
+        webRecommendationUniqId?: string
+      })
+    | undefined
+  if (!snapshot) return
   forYouStore.saveCompleteState({
     videoList: snapshot.videoList ?? [],
     appVideoList: snapshot.appVideoList ?? [],
@@ -282,7 +350,10 @@ function preserveInactiveForYouState() {
     webShowlistGroups: snapshot.webShowlistGroups,
     webLastClicklist: snapshot.webLastClicklist,
     noMoreContent: snapshot.noMoreContent ?? false,
-    isInitialized: !!snapshot.hasInitializedData || !!snapshot.videoList?.length || !!snapshot.appVideoList?.length,
+    isInitialized:
+      !!snapshot.hasInitializedData ||
+      !!snapshot.videoList?.length ||
+      !!snapshot.appVideoList?.length,
     recommendationMode: mode,
     appRecommendationColumn: settings.value.appRecommendationColumn,
     scrollTop: tabScrollPositions.get(key) ?? getHomeContentScrollTop(),
@@ -298,17 +369,13 @@ function handleChangeTab(tab: HomeTab) {
     const contentScrollTop = getHomeContentScrollTop()
     if (scrollTop > contentScrollTop) {
       handleThrottledBackToTop(contentScrollTop)
-    }
-    else {
-      if (tabContentLoading.value)
-        return
-      if (tabPageRef.value)
-        tabPageRef.value.initData()
+    } else {
+      if (tabContentLoading.value) return
+      if (tabPageRef.value) tabPageRef.value.initData()
     }
     return
   }
-  if (tabContentLoading.value)
-    toggleTabContentLoading(false)
+  if (tabContentLoading.value) toggleTabContentLoading(false)
 
   activatedPage.value = tab.page
   // Update global home activated page state
@@ -319,18 +386,69 @@ function openImmersiveMode() {
   tabPageRef.value?.openImmersiveMode?.()
 }
 
+const resolvedSearchPageModeWallpaper = ref('')
+const searchPageModeWallpaperSource = computed(() => {
+  if (
+    !settings.value.useSearchPageModeOnHomePage ||
+    !settings.value.individuallySetSearchPageWallpaper ||
+    !settings.value.enableBackground
+  )
+    return ''
+  return getEffectiveSearchPageWallpaper(settings.value, isDark.value)
+})
+
+watch(
+  [searchPageModeWallpaperSource, () => settings.value.searchPageWallpaperCacheTime],
+  ([originalUrl, cacheTime], _oldValue, onCleanup) => {
+    let aborted = false
+    onCleanup(() => {
+      aborted = true
+    })
+
+    if (!originalUrl) {
+      resolvedSearchPageModeWallpaper.value = ''
+      return
+    }
+
+    void resolveWallpaperSource(originalUrl, cacheTime)
+      .then((resolvedUrl) => {
+        if (!aborted) resolvedSearchPageModeWallpaper.value = resolvedUrl
+      })
+      .catch(() => {
+        if (!aborted) resolvedSearchPageModeWallpaper.value = ''
+      })
+  },
+  { immediate: true },
+)
+
 function toggleTabContentLoading(loading: boolean) {
   tabContentLoading.value = loading
 }
 </script>
 
 <template>
-  <div pos="relative">
+  <div
+    class="home-page"
+    :class="{
+      'home-page--search-mode':
+        settings.fixedHomeTabsOnHomePage && settings.useSearchPageModeOnHomePage,
+      'home-page--top-bar-hidden': shouldPinHomeHeaderToTop,
+      'home-page--top-bar-mouse': shouldPinHomeHeaderToTop && isShowOnMouseTopBar,
+    }"
+    pos="relative"
+  >
     <!-- Home search page mode background -->
     <Transition name="bg">
       <div
-        v-if="settings.useSearchPageModeOnHomePage && settings.individuallySetSearchPageWallpaper && !settings.disableBackground"
-        pos="absolute" w-screen h-580px z-0
+        v-if="
+          settings.useSearchPageModeOnHomePage &&
+          settings.individuallySetSearchPageWallpaper &&
+          settings.enableBackground
+        "
+        pos="absolute"
+        w-screen
+        h-580px
+        z-0
         :style="{
           left: '50%',
           transform: 'translateX(-50%)',
@@ -338,25 +456,41 @@ function toggleTabContentLoading(loading: boolean) {
         }"
       >
         <div
-          pos="absolute left-0 top-0" w-full h-inherit bg="cover center" z-1
+          pos="absolute left-0 top-0"
+          w-full
+          h-inherit
+          bg="cover center"
+          z-1
           pointer-events-none
           :style="{
-            backgroundImage: `url('${settings.searchPageWallpaper}')`,
+            backgroundImage: resolvedSearchPageModeWallpaper
+              ? `url('${resolvedSearchPageModeWallpaper}')`
+              : 'none',
             backgroundAttachment: settings.searchPageModeWallpaperFixed ? 'fixed' : 'unset',
           }"
         />
         <!-- background mask -->
         <Transition name="fade">
           <div
-            v-if="(!settings.individuallySetSearchPageWallpaper && settings.enableWallpaperMasking) || (settings.searchPageEnableWallpaperMasking)"
-            pos="relative left-0 top-0" w-full h-inherit pointer-events-none
+            v-if="
+              resolvedSearchPageModeWallpaper &&
+              ((!settings.individuallySetSearchPageWallpaper && settings.enableWallpaperMasking) ||
+                settings.searchPageEnableWallpaperMasking)
+            "
+            pos="relative left-0 top-0"
+            w-full
+            h-inherit
+            pointer-events-none
             z-1
             :style="{
               backdropFilter: `blur(${settings.individuallySetSearchPageWallpaper ? settings.searchPageWallpaperBlurIntensity : settings.wallpaperBlurIntensity}px)`,
             }"
           >
             <div
-              bg="$bew-homepage-bg" pos="absolute top-0 left-0" w-full h-full
+              bg="$bew-homepage-bg"
+              pos="absolute top-0 left-0"
+              w-full
+              h-full
               :style="{
                 opacity: `${settings.searchPageWallpaperMaskOpacity}%`,
               }"
@@ -373,15 +507,21 @@ function toggleTabContentLoading(loading: boolean) {
           v-if="settings.useSearchPageModeOnHomePage"
           flex="~ col"
           justify-center
-          items-center relative
-          w-full z-10 mb-4
+          items-center
+          relative
+          w-full
+          z-10
+          mb-4
           h-500px
           pointer-events-none
         >
           <Logo
-            v-if="settings.searchPageShowLogo" :size="180" :color="settings.searchPageLogoColor === 'white' ? 'white' : 'var(--bew-theme-color)'"
+            v-if="settings.searchPageShowLogo"
+            :size="180"
+            :color="settings.searchPageLogoColor === 'white' ? 'white' : 'var(--bew-theme-color)'"
             :glow="settings.searchPageLogoGlow"
-            m="t--70px b-12" z-1
+            m="t--70px b-12"
+            z-1
           />
           <SearchBar
             pointer-events-auto
@@ -399,9 +539,9 @@ function toggleTabContentLoading(loading: boolean) {
           'home-header--tabs-center': settings.homeTabsPosition === 'center',
           'home-header--recommendation-switcher': shouldShowRecommendationModeSwitcher,
           'home-header-fixed': settings.fixedHomeTabsOnHomePage,
-          'home-header-fixed--search': settings.fixedHomeTabsOnHomePage && settings.useSearchPageModeOnHomePage,
         }"
-        w-full z-9
+        w-full
+        z-9
       >
         <section
           v-if="shouldShowHomeTabs"
@@ -416,21 +556,20 @@ function toggleTabContentLoading(loading: boolean) {
           }"
         >
           <div class="home-tabs-scroll" h-full of-x-auto of-y-hidden>
-            <div
-              class="home-tabs-inside" flex="~ items-center" h-inherit w-max
-              box-border
-            >
+            <div class="home-tabs-inside" flex="~ items-center" h-inherit w-max box-border>
               <LiquidSegmentIndicator
                 v-if="settings.enableLiquidSegmentIndicator"
                 ref="tabsIndicatorRef"
                 :active-key="activatedPage"
               />
               <button
-                v-for="tab in currentTabs" :key="tab.page"
+                v-for="tab in currentTabs"
+                :key="tab.page"
                 class="home-tab-button bew-segment-control__item bew-segment-control__item--wide"
                 data-segment-item
                 :data-active="activatedPage === tab.page ? 'true' : undefined"
-                flex="~ gap-2 items-center shrink-0" relative
+                flex="~ gap-2 items-center shrink-0"
+                relative
                 @click="handleChangeTab(tab)"
               >
                 <span class="text-center">{{ $t(tab.i18nKey) }}</span>
@@ -444,7 +583,8 @@ function toggleTabContentLoading(loading: boolean) {
             v-if="shouldShowRecommendationModeSwitcher"
             class="glass-panel home-recommendation-mode-switcher bew-segment-control bew-segment-control--surface"
             :class="{
-              'home-header-item--edit-hidden': isLayoutEditing && !settings.showRecommendationModeSwitcher,
+              'home-header-item--edit-hidden':
+                isLayoutEditing && !settings.showRecommendationModeSwitcher,
               'bew-segment-control--static': !settings.enableLiquidSegmentIndicator,
               'bew-segment-control--solid': !settings.enableFrostedGlass,
             }"
@@ -489,7 +629,8 @@ function toggleTabContentLoading(loading: boolean) {
             data-layout-settings-page="home"
             data-layout-settings-title-key="settings.enable_grid_layout_switcher"
             :class="{
-              'home-header-item--edit-hidden': isLayoutEditing && !settings.enableGridLayoutSwitcher,
+              'home-header-item--edit-hidden':
+                isLayoutEditing && !settings.enableGridLayoutSwitcher,
               'bew-segment-control--static': !settings.enableLiquidSegmentIndicator,
               'bew-segment-control--solid': !settings.enableFrostedGlass,
             }"
@@ -502,7 +643,8 @@ function toggleTabContentLoading(loading: boolean) {
               :active-key="gridLayout.home"
             />
             <button
-              v-for="icon in gridLayoutIcons" :key="icon.value"
+              v-for="icon in gridLayoutIcons"
+              :key="icon.value"
               type="button"
               class="home-grid-layout-item bew-segment-control__item bew-segment-control__item--icon"
               data-segment-item
@@ -540,7 +682,10 @@ function toggleTabContentLoading(loading: boolean) {
               :aria-label="$t('home.immersive_mode_entry')"
               @click="openImmersiveMode"
             >
-              <span class="i-mingcute-play-circle-line bew-segment-control__icon" aria-hidden="true" />
+              <span
+                class="i-mingcute-play-circle-line bew-segment-control__icon"
+                aria-hidden="true"
+              />
             </button>
           </div>
         </div>
@@ -553,7 +698,8 @@ function toggleTabContentLoading(loading: boolean) {
         @after-enter="finishTabSwitch"
       >
         <Component
-          :is="pages[activatedPage]" :key="`${activatedPageCacheKey}:${cacheRevision}`"
+          :is="pages[activatedPage]"
+          :key="`${activatedPageCacheKey}:${cacheRevision}`"
           ref="tabPageRef"
           :grid-layout="gridLayout.home"
           :top-bar-visibility="topBarVisibility"
@@ -575,26 +721,26 @@ function toggleTabContentLoading(loading: boolean) {
 
 .bg-enter-active,
 .bg-leave-active {
-  --uno: "duration-500 ease-in-out";
+  --uno: 'duration-500 ease-in-out';
 }
 .bg-enter-from,
 .bg-leave-to {
-  --uno: "h-100vh";
+  --uno: 'h-100vh';
 }
 .bg-leave-to {
-  --uno: "hidden";
+  --uno: 'hidden';
 }
 
 .content-enter-active,
 .content-leave-active {
-  --uno: "duration-500 ease-in-out";
+  --uno: 'duration-500 ease-in-out';
 }
 .content-enter-from,
 .content-leave-to {
-  --uno: "opacity-0 h-100vh";
+  --uno: 'opacity-0 h-100vh';
 }
 .content-leave-to {
-  --uno: "hidden";
+  --uno: 'hidden';
 }
 
 .home-tab-enter-active,
@@ -675,12 +821,27 @@ function toggleTabContentLoading(loading: boolean) {
   gap: var(--bew-control-gap);
 }
 
-.home-header-fixed {
-  --uno: "sticky top-[calc(var(--bew-top-bar-height)+10px)]";
+.home-page {
+  --home-header-sticky-top: calc(var(--bew-top-bar-height) + 10px);
 }
 
-.home-header-fixed--search {
-  top: calc(var(--bew-top-bar-height) + var(--bew-space-4));
+.home-page--search-mode {
+  --home-header-sticky-top: calc(var(--bew-top-bar-height) + var(--bew-space-4));
+}
+
+.home-page--top-bar-hidden {
+  --home-header-sticky-top: var(--bew-space-3);
+}
+
+.home-page--top-bar-hidden.home-page--top-bar-mouse {
+  // 鼠标显示顶栏时在顶部留出 12px 感应区 + 4px 缓冲，避免遮挡或误触顶栏。
+  --home-header-sticky-top: var(--bew-space-4);
+}
+
+.home-header-fixed {
+  position: sticky;
+  top: var(--home-header-sticky-top);
+  transition: top var(--bew-duration-moderate) var(--bew-ease-standard);
 }
 
 @media (max-width: 1000px) {
@@ -718,6 +879,10 @@ function toggleTabContentLoading(loading: boolean) {
   .home-tab-enter-active,
   .home-tab-leave-active {
     transition: opacity 1ms linear;
+  }
+
+  .home-header-fixed {
+    transition: none;
   }
 }
 </style>

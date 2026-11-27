@@ -20,16 +20,18 @@ const title = ref('')
 const busy = ref(false)
 const error = ref('')
 const status = ref('')
-const request = (action: string, payload?: unknown) => browser.runtime.sendMessage({ type: ANTI_JUNK_MESSAGE, action, payload })
+const request = (action: string, payload?: unknown) =>
+  browser.runtime.sendMessage({ type: ANTI_JUNK_MESSAGE, action, payload })
 
 async function refresh() {
   try {
-    const result = await request('read') as { library: AntiJunkLibrary }
+    const result = (await request('read')) as { library: AntiJunkLibrary }
     if (result.library.summary !== library.value.summary)
       summaryDraft.value = result.library.summary
     library.value = result.library
+  } catch {
+    error.value = 'storage-error'
   }
-  catch { error.value = 'storage-error' }
 }
 
 async function change(action: string, payload?: unknown) {
@@ -37,39 +39,50 @@ async function change(action: string, payload?: unknown) {
   summarizing.value = action === 'library-summarize'
   error.value = status.value = ''
   try {
-    const result = await request(action, payload) as { ok?: boolean, error?: string }
+    const result = (await request(action, payload)) as { ok?: boolean; error?: string }
     if (result.error || !result.ok) {
       error.value = result.error || 'storage-error'
       return false
     }
     await refresh()
-    if (action === 'library-clear')
-      summaryDraft.value = ''
-    status.value = t(action === 'library-summarize' ? 'anti_junk.library_summarized' : 'anti_junk.library_saved')
+    if (action === 'library-clear') summaryDraft.value = ''
+    status.value = t(
+      action === 'library-summarize' ? 'anti_junk.library_summarized' : 'anti_junk.library_saved',
+    )
     return true
-  }
-  catch {
+  } catch {
     error.value = 'storage-error'
     return false
-  }
-  finally {
+  } finally {
     busy.value = false
     summarizing.value = false
   }
 }
 
 async function add() {
-  if (busy.value || !text.value.trim())
-    return
+  if (busy.value || !text.value.trim()) return
   const id = `manual-${crypto.randomUUID()}`
-  if (await change('library-add', { verdict: verdict.value, comment: { token: id, id, oid: 'manual', text: text.value.trim(), parentText: parent.value.trim(), title: title.value.trim(), author: '', url: '' } })) {
+  if (
+    await change('library-add', {
+      verdict: verdict.value,
+      comment: {
+        token: id,
+        id,
+        oid: 'manual',
+        text: text.value.trim(),
+        parentText: parent.value.trim(),
+        title: title.value.trim(),
+        author: '',
+        url: '',
+      },
+    })
+  ) {
     text.value = parent.value = title.value = ''
   }
 }
 
 function storageChanged(changes: Record<string, browser.Storage.StorageChange>, area: string) {
-  if (area === 'local' && changes[ANTI_JUNK_LIBRARY])
-    void refresh()
+  if (area === 'local' && changes[ANTI_JUNK_LIBRARY]) void refresh()
 }
 browser.storage.onChanged.addListener(storageChanged)
 onScopeDispose(() => browser.storage.onChanged.removeListener(storageChanged))
@@ -91,25 +104,55 @@ onMounted(() => void refresh())
         </select>
         <label for="antijunk-example-text">{{ t('anti_junk.example_text') }}</label>
         <textarea
-          id="antijunk-example-text" v-model="text" rows="3" maxlength="12000" :disabled="busy"
+          id="antijunk-example-text"
+          v-model="text"
+          rows="3"
+          maxlength="12000"
+          :disabled="busy"
           required
         />
         <label for="antijunk-example-parent">{{ t('anti_junk.example_parent') }}</label>
-        <textarea id="antijunk-example-parent" v-model="parent" rows="2" maxlength="2000" :disabled="busy" />
-        <Input v-model="title" :placeholder="t('anti_junk.example_context')" :aria-label="t('anti_junk.example_context')" maxlength="300" :disabled="busy" />
+        <textarea
+          id="antijunk-example-parent"
+          v-model="parent"
+          rows="2"
+          maxlength="2000"
+          :disabled="busy"
+        />
+        <Input
+          v-model="title"
+          :placeholder="t('anti_junk.example_context')"
+          :aria-label="t('anti_junk.example_context')"
+          maxlength="300"
+          :disabled="busy"
+        />
         <div class="actions">
           <Button type="primary" :disabled="busy || !text.trim()" @click="add">
             {{ t('anti_junk.library_add') }}
           </Button>
-          <Button :disabled="busy || (!library.examples.length && !library.summary)" @click="change('library-summarize')">
+          <Button
+            :disabled="busy || (!library.examples.length && !library.summary)"
+            @click="change('library-summarize')"
+          >
             {{ t(summarizing ? 'anti_junk.library_summarizing' : 'anti_junk.library_summarize') }}
           </Button>
-          <Button type="error" :disabled="busy || (!library.examples.length && !library.summary)" @click="change('library-clear')">
+          <Button
+            type="error"
+            :disabled="busy || (!library.examples.length && !library.summary)"
+            @click="change('library-clear')"
+          >
             {{ t('anti_junk.library_clear') }}
           </Button>
         </div>
       </div>
-      <p>{{ t('anti_junk.library_stats', { count: library.examples.length, length: library.summary.length }) }}</p>
+      <p>
+        {{
+          t('anti_junk.library_stats', {
+            count: library.examples.length,
+            length: library.summary.length,
+          })
+        }}
+      </p>
       <p v-if="status" role="status">
         {{ status }}
       </p>
@@ -118,17 +161,30 @@ onMounted(() => void refresh())
       </p>
       <div class="case-form">
         <label for="antijunk-summary">{{ t('anti_junk.library_summary') }}</label>
-        <textarea id="antijunk-summary" v-model="summaryDraft" rows="5" maxlength="6000" :disabled="busy" />
+        <textarea
+          id="antijunk-summary"
+          v-model="summaryDraft"
+          rows="5"
+          maxlength="6000"
+          :disabled="busy"
+        />
         <p>{{ t('anti_junk.library_summary_note') }}</p>
         <div class="actions">
-          <Button :disabled="busy || summaryDraft === library.summary" @click="change('library-summary-save', { summary: summaryDraft })">
+          <Button
+            :disabled="busy || summaryDraft === library.summary"
+            @click="change('library-summary-save', { summary: summaryDraft })"
+          >
             {{ t('anti_junk.library_summary_save') }}
           </Button>
         </div>
       </div>
       <div class="case-list">
         <article v-for="example in library.examples" :key="example.key" class="case">
-          <p>{{ t(example.verdict === 'allow' ? 'anti_junk.keep_example' : 'anti_junk.block_example') }}</p>
+          <p>
+            {{
+              t(example.verdict === 'allow' ? 'anti_junk.keep_example' : 'anti_junk.block_example')
+            }}
+          </p>
           <p class="case-text">
             {{ example.comment.text }}
           </p>
@@ -141,7 +197,11 @@ onMounted(() => void refresh())
               {{ example.comment.parentText }}
             </p>
           </details>
-          <Button size="small" :disabled="busy" @click="change('library-remove', { key: example.key })">
+          <Button
+            size="small"
+            :disabled="busy"
+            @click="change('library-remove', { key: example.key })"
+          >
             {{ t('anti_junk.library_remove') }}
           </Button>
         </article>

@@ -9,6 +9,7 @@ const props = defineProps<{
   title?: string
   rel?: string
   type: 'topBar' | 'videoCard' | 'searchBar'
+  disabled?: boolean
   customClickEvent?: boolean
   customClickEventIncludesModifiers?: boolean
   stopPropagation?: boolean
@@ -25,19 +26,15 @@ const emit = defineEmits<{
 const { openIframeDrawer, openVideoDialog } = useBewlyApp()
 
 const processedHref = computed(() => {
-  if (!props.href)
-    return 'javascript:void(0)'
+  if (!props.href) return 'javascript:void(0)'
 
   return props.href
 })
 
 const openMode = computed(() => {
-  if (props.type === 'topBar')
-    return settings.value.topBarLinkOpenMode
-  else if (props.type === 'videoCard')
-    return settings.value.videoCardLinkOpenMode
-  else if (props.type === 'searchBar')
-    return settings.value.searchBarLinkOpenMode
+  if (props.type === 'topBar') return settings.value.topBarLinkOpenMode
+  else if (props.type === 'videoCard') return settings.value.videoCardLinkOpenMode
+  else if (props.type === 'searchBar') return settings.value.searchBarLinkOpenMode
   return 'newTab'
 })
 
@@ -64,9 +61,15 @@ function getTarget() {
 }
 
 function handleClick(event: MouseEvent) {
+  if (props.disabled) return
+
   // Dock navigation can change the URL without remounting this link.
   const link = event.currentTarget as HTMLAnchorElement
   link.target = getTarget()
+
+  // 鼠标打开的卡片不应在原标签页保留焦点，否则键盘操作会重新显示
+  // :focus-visible 描边。键盘激活的点击事件 detail 为 0，继续保留焦点反馈。
+  if (props.type === 'videoCard' && event.detail > 0) setTimeout(() => link.blur(), 0)
 
   if (props.stopPropagation) {
     event.stopPropagation()
@@ -75,7 +78,10 @@ function handleClick(event: MouseEvent) {
   emit('activate', event)
 
   if (props.customClickEvent) {
-    if (!props.customClickEventIncludesModifiers && (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey))
+    if (
+      !props.customClickEventIncludesModifiers &&
+      (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
+    )
       return
 
     event.preventDefault()
@@ -83,8 +89,7 @@ function handleClick(event: MouseEvent) {
     return
   }
 
-  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
-    return
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
 
   // 在触屏模式下，topBar 类型的链接不执行打开操作，只显示弹窗
   // 但有以下例外情况应该允许点击并响应打开行为设置：
@@ -128,8 +133,8 @@ function handleClick(event: MouseEvent) {
 
 <template>
   <a
-    :href="processedHref"
-    :target="getTarget()"
+    :href="disabled ? undefined : processedHref"
+    :target="disabled ? undefined : getTarget()"
     :title="title"
     :rel="rel"
     :draggable="disableDragging ? false : undefined"

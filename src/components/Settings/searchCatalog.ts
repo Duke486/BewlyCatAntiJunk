@@ -44,13 +44,16 @@ const nonSettingTitleKeyPatterns = [
 ]
 
 function isSettingTitleKey(titleKey: string) {
-  return !nonSettingTitleKeyPatterns.some(pattern => pattern.test(titleKey))
+  return !nonSettingTitleKeyPatterns.some((pattern) => pattern.test(titleKey))
 }
 
 function createEntries(
   route: SearchRoute,
   titleKeys: string[],
-  options: Omit<SettingsSearchEntry, 'titleKey' | 'menu' | 'secondaryTitleKey' | 'storageValues'> & {
+  options: Omit<
+    SettingsSearchEntry,
+    'titleKey' | 'menu' | 'secondaryTitleKey' | 'storageValues'
+  > & {
     storageValues?: SettingsSearchStorageValue[]
     keywordKeysByTitleKey?: Record<string, string[]>
     contextTitleKeysByTitleKey?: Record<string, string>
@@ -185,6 +188,8 @@ const aboutRoute: SearchRoute = { menu: MenuType.About }
 
 const wallpaperTitleKeys = [
   'settings.group_wallpaper',
+  'settings.individually_set_dark_mode_wallpaper',
+  'settings.wallpaper_theme_target',
   'settings.wallpaper_mode',
   'settings.wallpaper_cache_time',
   'settings.choose_ur_wallpaper',
@@ -239,11 +244,12 @@ const topBarGlobalTitleKeys = [
 /** 只在 Bewly 页面中生效；关闭 Bewly 页面后从搜索结果中隐藏。 */
 export const bewlyPagesOnlyTitleKeys = new Set([
   ...wallpaperTitleKeys,
-  'settings.disable_background',
+  'settings.enable_background',
   'settings.sidebar_cover_blur',
   'settings.gradient_theme_color_background',
   'settings.always_use_dock',
   'settings.dock_item_use_original_bili_web_page',
+  'settings.enable_undo_refresh_button',
   'settings.video_card_link_opening_behavior',
   'settings.group_list_scrolling',
   'settings.enable_horizontal_scrolling',
@@ -256,9 +262,55 @@ export const videoPageBackgroundTitleKeys = new Set([
 ])
 
 /** 只在 Bewly 顶栏中生效；关闭 Bewly 顶栏后从搜索结果中隐藏。 */
-export const bewlyTopBarOnlyTitleKeys = new Set([
-  'settings.top_bar_link_opening_behavior',
+export const bewlyTopBarOnlyTitleKeys = new Set(['settings.top_bar_link_opening_behavior'])
+
+/** 播放器扩展快捷键；关闭「播放器增强」模块后停用并从搜索结果中隐藏。 */
+export const playerShortcutTitleKeys = new Set([
+  'settings.shortcuts.group.general',
+  'settings.shortcuts.danmu_status',
+  'settings.shortcuts.web_fullscreen',
+  'settings.shortcuts.widescreen',
+  'settings.shortcuts.bewly_widescreen',
+  'settings.shortcuts.short_step_backward',
+  'settings.shortcuts.long_step_backward',
+  'settings.shortcuts.play_pause_ext',
+  'settings.shortcuts.short_step_forward',
+  'settings.shortcuts.long_step_forward',
+  'settings.shortcuts.pip',
+  'settings.shortcuts.turn_off_light',
+  'settings.shortcuts.caption',
+  'settings.shortcuts.video_screenshot',
+  'settings.shortcuts.increase_playback_rate',
+  'settings.shortcuts.decrease_playback_rate',
+  'settings.shortcuts.reset_playback_rate',
+  'settings.shortcuts.previous_frame',
+  'settings.shortcuts.next_frame',
+  'settings.shortcuts.replay',
+  'settings.shortcuts.toggle_follow',
+  'settings.shortcuts.group.fullscreen_mode',
+  'settings.shortcuts.increase_video_size',
+  'settings.shortcuts.decrease_video_size',
+  'settings.shortcuts.reset_video_size',
+  'settings.shortcuts.video_title',
+  'settings.shortcuts.video_time',
+  'settings.shortcuts.clock_time',
 ])
+
+const sharedMomentFilterTitleKeys = [
+  'settings.group_moments_filters',
+  'settings.moments_filtered_types',
+  'settings.moments_filter_video_dynamic',
+  'settings.moments_filter_draw_dynamic',
+  'settings.moments_filter_ugc_season_dynamic',
+  'settings.moments_filter_forward_dynamic',
+  'settings.moments_filter_pgc_dynamic',
+  'settings.moments_filter_article_dynamic',
+  'settings.moments_filter_charge_dynamic',
+  'settings.moments_filter_video_reservation',
+  'settings.moments_filter_live_reservation',
+  'settings.moments_filter_live_dynamic',
+  'settings.moments_keyword_filter',
+] as const
 
 const baseSettingsSearchEntries: SettingsSearchEntry[] = [
   ...createEntries(generalRoute, [
@@ -274,16 +326,20 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     'settings.enable_horizontal_scrolling',
     'settings.group_drawer_behavior',
     'settings.close_drawer_without_pressing_esc_again',
-    'settings.hide_drawer_esc_hint',
+    'settings.show_drawer_esc_hint',
   ]),
-  ...createEntries(interactionRoute, [
-    'settings.group_link_opening_behavior',
-    'settings.top_bar_link_opening_behavior',
-    'settings.search_bar_link_opening_behavior',
-  ], { keywordKeys: linkOpeningOptionKeys }),
-  ...createEntries(interactionRoute, [
-    'settings.video_card_link_opening_behavior',
-  ], { keywordKeys: videoCardLinkOpeningOptionKeys }),
+  ...createEntries(
+    interactionRoute,
+    [
+      'settings.group_link_opening_behavior',
+      'settings.top_bar_link_opening_behavior',
+      'settings.search_bar_link_opening_behavior',
+    ],
+    { keywordKeys: linkOpeningOptionKeys },
+  ),
+  ...createEntries(interactionRoute, ['settings.video_card_link_opening_behavior'], {
+    keywordKeys: videoCardLinkOpeningOptionKeys,
+  }),
   ...createEntries(generalRoute, [
     'settings.group_modules_interface',
     'settings.group_modules_enhancements',
@@ -295,12 +351,12 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     'settings.module_player',
     'settings.module_shortcuts',
   ]),
-  ...createEntries(homeRoute, [
-    'settings.menu_bewly_pages',
-  ], { targetTitleKey: 'settings.plugin.home' }),
-  ...createEntries(videoCardRoute, [
-    'settings.menu_bewly_components',
-  ], { targetTitleKey: 'settings.plugin.video_card' }),
+  ...createEntries(homeRoute, ['settings.menu_bewly_pages'], {
+    targetTitleKey: 'settings.plugin.home',
+  }),
+  ...createEntries(videoCardRoute, ['settings.menu_bewly_components'], {
+    targetTitleKey: 'settings.plugin.video_card',
+  }),
 
   ...createEntries(homeRoute, ['settings.following_sort'], {
     keywordKeys: ['settings.following_sort_updated', 'settings.following_sort_group'],
@@ -347,9 +403,7 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     'settings.following_filter_charging_videos',
     'settings.following_filter_dynamic_videos',
   ]),
-  ...createEntries(homeRoute, [
-    'settings.recommendation_mode',
-  ], {
+  ...createEntries(homeRoute, ['settings.recommendation_mode'], {
     keywordKeys: [
       'settings.recommendation_mode_web_no_cookie',
       'settings.recommendation_mode_app_single',
@@ -358,75 +412,83 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     // 保留旧名称「无 Cookie」的检索
     keywords: ['Web', 'App', 'Cookie'],
   }),
-  ...createEntries(momentsRoute, [
-    'settings.plugin.moments',
-    'settings.group_new_moments_page',
-    'settings.moments_visible_components',
-    'settings.moments_filtered_types',
-    'settings.moments_show_user_card',
-    'settings.moments_show_publish',
-    'settings.moments_show_live',
-    'settings.moments_show_hot_search',
-    'settings.moments_show_up_list',
-    'settings.moments_grid_columns',
-    'settings.moments_tabs_position',
-    'settings.moments_start_from_last_seen',
-    'settings.moments_enable_live_preview',
-    'settings.moments_enable_video_preview',
-    'settings.enable_video_ctrl_bar_on_video_card',
-    'settings.video_preview_swipe_seek',
-    'settings.hover_video_card_delayed',
-    'settings.only_cover_video_preview',
-    'settings.moments_card_open_mode',
-    'settings.moments_video_card_open_mode',
-    'settings.group_moments_filters',
-    'settings.moments_show_filter_entry',
-    'settings.moments_filter_video_dynamic',
-    'settings.moments_filter_draw_dynamic',
-    'settings.moments_filter_ugc_season_dynamic',
-    'settings.moments_filter_forward_dynamic',
-    'settings.moments_filter_pgc_dynamic',
-    'settings.moments_filter_article_dynamic',
-    'settings.moments_filter_charge_dynamic',
-    'settings.moments_filter_video_reservation',
-    'settings.moments_filter_live_reservation',
-    'settings.moments_filter_live_dynamic',
-    'settings.moments_keyword_filter',
-    'settings.group_moments_pinned_users',
-    'settings.moments_pinned_users',
-  ], {
-    contextTitleKeysByTitleKey: {
-      'settings.moments_show_user_card': 'settings.group_new_moments_page',
-      'settings.moments_show_hot_search': 'settings.group_new_moments_page',
+  ...createEntries(
+    momentsRoute,
+    [
+      'settings.plugin.moments',
+      'settings.group_new_moments_page',
+      'settings.moments_visible_components',
+      'settings.moments_filtered_types',
+      'settings.moments_show_user_card',
+      'settings.moments_show_publish',
+      'settings.moments_show_live',
+      'settings.moments_show_hot_search',
+      'settings.moments_show_up_list',
+      'settings.moments_grid_columns',
+      'settings.moments_tabs_position',
+      'settings.moments_start_from_last_seen',
+      'settings.moments_enable_live_preview',
+      'settings.moments_enable_video_preview',
+      'settings.enable_video_ctrl_bar_on_video_card',
+      'settings.video_preview_swipe_seek',
+      'settings.hover_video_card_delayed',
+      'settings.only_cover_video_preview',
+      'settings.moments_card_open_mode',
+      'settings.moments_video_card_open_mode',
+      ...sharedMomentFilterTitleKeys,
+      'settings.moments_show_filter_entry',
+      'settings.group_moments_pinned_users',
+      'settings.moments_pinned_users',
+    ],
+    {
+      contextTitleKeysByTitleKey: {
+        'settings.moments_show_user_card': 'settings.group_new_moments_page',
+        'settings.moments_show_hot_search': 'settings.group_new_moments_page',
+      },
     },
+  ),
+  ...createEntries(momentsRoute, ['settings.moments_filter_up_recommendation'], {
+    targetTitleKey: 'settings.moments_filter_up_recommendation_short',
   }),
-  ...createEntries(momentsRoute, [
-    'settings.moments_filter_up_recommendation',
-  ], { targetTitleKey: 'settings.moments_filter_up_recommendation_short' }),
-  ...createEntries(momentsRoute, [
-    'settings.moments_hide_charge_exclusive',
-  ], { targetTitleKey: 'settings.moments_filter_charge_dynamic' }),
-  ...createEntries(originalMomentsRoute, [
-    'settings.bilibili_features.moments',
-    'settings.group_original_moments_page',
-    'settings.original_moments_show_user_card',
-    'settings.original_moments_show_live_list',
-    'settings.original_moments_show_community_center',
-    'settings.original_moments_show_hot_search',
-    'settings.original_moments_show_up_list',
-    'settings.original_moments_show_fold_comments_button',
-    'settings.original_moments_click_blank_to_fold_comments',
-    'settings.original_moments_use_bewly_filters',
-    'settings.moments_filtered_types',
-    'settings.moments_keyword_filter',
-  ], { keywordKeys: ['settings.bilibili_features.moments'] }),
-  ...createEntries(favoritesRoute, [
-    'settings.bilibili_features.favorite_organizer',
-    'settings.group_favorite_organizer',
-    'settings.favorite_organizer.sync_after_triple',
-    'settings.favorite_organizer.batch_title',
-    'settings.favorite_organizer.rules_title',
-  ], { keywordKeys: ['settings.bilibili_features.favorite_organizer'] }),
+  ...createEntries(momentsRoute, ['settings.moments_hide_charge_exclusive'], {
+    targetTitleKey: 'settings.moments_filter_charge_dynamic',
+  }),
+  ...createEntries(
+    originalMomentsRoute,
+    [
+      'settings.bilibili_features.moments',
+      'settings.group_original_moments_page',
+      'settings.original_moments_show_user_card',
+      'settings.original_moments_show_live_list',
+      'settings.original_moments_show_community_center',
+      'settings.original_moments_show_hot_search',
+      'settings.original_moments_show_up_list',
+      'settings.original_moments_show_fold_comments_button',
+      'settings.original_moments_click_blank_to_fold_comments',
+      'settings.original_moments_use_bewly_filters',
+      ...sharedMomentFilterTitleKeys,
+    ],
+    { keywordKeys: ['settings.bilibili_features.moments'] },
+  ),
+  ...createEntries(originalMomentsRoute, ['settings.moments_filter_up_recommendation'], {
+    targetTitleKey: 'settings.moments_filter_up_recommendation_short',
+    keywordKeys: ['settings.bilibili_features.moments'],
+  }),
+  ...createEntries(originalMomentsRoute, ['settings.moments_hide_charge_exclusive'], {
+    targetTitleKey: 'settings.moments_filter_charge_dynamic',
+    keywordKeys: ['settings.bilibili_features.moments'],
+  }),
+  ...createEntries(
+    favoritesRoute,
+    [
+      'settings.bilibili_features.favorite_organizer',
+      'settings.group_favorite_organizer',
+      'settings.favorite_organizer.sync_after_triple',
+      'settings.favorite_organizer.batch_title',
+      'settings.favorite_organizer.rules_title',
+    ],
+    { keywordKeys: ['settings.bilibili_features.favorite_organizer'] },
+  ),
   ...createEntries(videoCardRoute, [
     'settings.plugin.video_card',
     'settings.group_video_card_grid',
@@ -477,25 +539,34 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     'video_card.operation.block_user',
     'video_card.operation.customize_menu',
   ]),
-  ...createEntries(videoCardRoute, [
-    'settings.video_card_title_font_size',
-    'settings.video_card_author_font_size',
-    'settings.video_card_meta_font_size',
-  ], { keywordKeys: ['settings.font_size_option'] }),
+  ...createEntries(
+    videoCardRoute,
+    [
+      'settings.video_card_title_font_size',
+      'settings.video_card_author_font_size',
+      'settings.video_card_meta_font_size',
+    ],
+    { keywordKeys: ['settings.font_size_option'] },
+  ),
 
-  ...createEntries(topBarRoute, [
-    'settings.plugin.topbar',
-    ...topBarGlobalTitleKeys,
-  ]),
+  ...createEntries(topBarRoute, ['settings.plugin.topbar', ...topBarGlobalTitleKeys]),
   ...createEntries(topBarRoute, [
     'settings.topbar_logo_and_channels',
     'settings.top_bar_logo_style',
     'settings.show_home_button_in_touch_mode',
   ]),
-  ...createEntries(topBarRoute, [
-    'settings.group_topbar_pinned_channels',
-    'settings.topbar_pinned_channels_title',
-  ], { keywordKeys: ['settings.pinned_manager.add', 'settings.pinned_manager.search', 'settings.pinned_manager.undo', 'settings.pinned_manager.categories'] }),
+  ...createEntries(
+    topBarRoute,
+    ['settings.group_topbar_pinned_channels', 'settings.topbar_pinned_channels_title'],
+    {
+      keywordKeys: [
+        'settings.pinned_manager.add',
+        'settings.pinned_manager.search',
+        'settings.pinned_manager.undo',
+        'settings.pinned_manager.categories',
+      ],
+    },
+  ),
   ...createEntries(topBarRoute, [
     'settings.topbar_switchers',
     'settings.show_bewly_or_bili_page_switcher',
@@ -505,33 +576,37 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     'settings.group_search_bar',
     'settings.show_hot_search_in_top_bar',
   ]),
-  ...createEntries(topBarRoute, [
-    'settings.topbar_actions',
-  ], {
+  ...createEntries(topBarRoute, ['settings.topbar_actions'], {
     keywordKeys: ['settings.visibility', 'settings.badge_type', 'settings.top_bar_icon_badges_opt'],
   }),
   ...createEntries(topBarRoute, [
     'settings.topbar_user_menu',
-    'settings.hide_lv6_last_login_location_in_top_bar_user_pop',
+    'settings.show_lv6_last_login_location_in_top_bar_user_pop',
   ]),
   ...[
     ['moments', 'topbar.moments'],
     ['watchLater', 'topbar.watch_later'],
     ['notifications', 'topbar.notifications'],
-  ].flatMap(([, titleKey]) => createEntries(topBarRoute, [titleKey!], {
-    keywordKeys: ['settings.visibility', 'settings.badge_type', 'settings.top_bar_icon_badges_opt'],
-  })),
+  ].flatMap(([, titleKey]) =>
+    createEntries(topBarRoute, [titleKey!], {
+      keywordKeys: [
+        'settings.visibility',
+        'settings.badge_type',
+        'settings.top_bar_icon_badges_opt',
+      ],
+    }),
+  ),
   ...[
     ['favorites', 'topbar.favorites'],
     ['history', 'topbar.history'],
     ['creatorCenter', 'topbar.creative_center'],
     ['upload', 'topbar.upload'],
-  ].flatMap(([, titleKey]) => createEntries(topBarRoute, [titleKey!], {
-    keywordKeys: ['settings.visibility'],
-  })),
-  ...createEntries(topBarRoute, [
-    'topbar.top_bar_switcher',
-  ], {
+  ].flatMap(([, titleKey]) =>
+    createEntries(topBarRoute, [titleKey!], {
+      keywordKeys: ['settings.visibility'],
+    }),
+  ),
+  ...createEntries(topBarRoute, ['topbar.top_bar_switcher'], {
     keywordKeys: [
       'settings.visibility',
       'settings.top_bar_mode',
@@ -540,34 +615,42 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     ],
   }),
 
-  ...createEntries(dockRoute, [
-    'settings.plugin.dock_and_sidebar',
-    'settings.group_dock',
-    'settings.dock_position',
-    'settings.always_use_dock',
-    'settings.auto_hide_dock',
-    'settings.always_show_dock_actions_when_auto_hide',
-    'settings.half_hide_dock',
-    'settings.dock_content_adjustment',
-    'settings.show_layout_edit_button',
-    'settings.disable_dock_glowing_effect',
-    'settings.disable_dock_icon_animation',
-    'settings.disable_light_dark_mode_switcher',
-    'settings.disable_back_to_top_button_on_dock',
-    'settings.disable_refresh_button_on_dock',
-    'settings.back_to_top_and_refresh_buttons_are_separated',
-    'settings.enable_undo_refresh_button',
-    'settings.group_sidebar',
-    'settings.module_sidebar',
-    'settings.auto_hide_sidebar',
-  ], {
-    keywordKeysByTitleKey: {
-      'settings.dock_position': ['common.position.left', 'common.position.right', 'common.position.bottom'],
+  ...createEntries(
+    dockRoute,
+    [
+      'settings.plugin.dock_and_sidebar',
+      'settings.group_dock',
+      'settings.dock_position',
+      'settings.always_use_dock',
+      'settings.auto_hide_dock',
+      'settings.always_show_dock_actions_when_auto_hide',
+      'settings.half_hide_dock',
+      'settings.dock_content_adjustment',
+      'settings.show_layout_edit_button',
+      'settings.enable_dock_glowing_effect',
+      'settings.enable_dock_icon_animation',
+      'settings.enable_light_dark_mode_switcher',
+      'settings.enable_back_to_top_button_on_dock',
+      'settings.enable_refresh_button_on_dock',
+      'settings.back_to_top_and_refresh_buttons_are_separated',
+      'settings.enable_undo_refresh_button',
+      'settings.group_sidebar',
+      'settings.module_sidebar',
+      'settings.auto_hide_sidebar',
+    ],
+    {
+      keywordKeysByTitleKey: {
+        'settings.dock_position': [
+          'common.position.left',
+          'common.position.right',
+          'common.position.bottom',
+        ],
+      },
     },
+  ),
+  ...createEntries(dockRoute, ['settings.sidebar_position'], {
+    keywordKeys: ['common.position.left', 'common.position.right'],
   }),
-  ...createEntries(dockRoute, [
-    'settings.sidebar_position',
-  ], { keywordKeys: ['common.position.left', 'common.position.right'] }),
 
   ...createEntries(searchPageRoute, [
     'settings.plugin.search',
@@ -578,11 +661,10 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     'settings.group_search_bar',
     'settings.show_search_recommendation',
     'settings.enable_search_history',
+    'settings.show_hot_search_in_top_bar',
     'settings.bg_darkens_when_the_search_bar_is_focused',
     'settings.bg_blurs_when_the_search_bar_is_focused',
     'settings.choose_search_bar_focused_character',
-    'settings.group_hot_search',
-    'settings.show_hot_search_in_search_page',
     'settings.group_search_results',
     'settings.use_plugin_search_results_page',
     'settings.show_search_identity_switcher',
@@ -628,105 +710,116 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     'settings.video_player_mode.bewly_widescreen_auto_collapse_sidebar',
     'settings.video_player_mode.bewly_widescreen_video_alignment',
     'settings.video_player_mode.enable_bewly_widescreen_sidebar_resize',
-    'settings.group_player_components',
+    'settings.group_danmaku_and_captions',
     'settings.skip_concise_danmaku',
-    'settings.group_playback_memory',
+    'settings.group_playback_rate',
+    'settings.enable_default_playback_rate',
+    'settings.default_playback_rate',
     'settings.custom_playback_rate',
     'settings.playback_rate_step',
+    'settings.group_volume_control',
     'settings.fullscreen_wheel_volume',
     'settings.fullscreen_wheel_volume_step',
     'settings.keyboard_volume',
     'settings.keyboard_volume_step',
+    'settings.group_playback_memory',
     'settings.remember_playback_rate',
     'settings.remember_video_quality',
     'settings.remember_video_aspect_ratio',
     'settings.group_video_page_actions',
     'settings.enlarge_favorite_dialog',
     'settings.external_watch_later_button',
+    'settings.show_vertical_video_zoom_button',
     'settings.show_video_screenshot_button',
     'settings.show_video_pip_button',
+    'settings.show_video_loudness_button',
   ]),
-  ...createEntries(playerRoute, [
-    'settings.video_player_scroll_mode.title',
-  ], {
+  ...createEntries(playerRoute, ['settings.video_player_scroll_mode.title'], {
     keywordKeys: [
       'settings.video_player_scroll_mode.sending_bar',
       'settings.video_player_scroll_mode.player_center',
     ],
   }),
-  ...createEntries(playerRoute, [
-    'settings.video_default_player_mode',
-  ], { keywordKeys: playerModeOptionKeys }),
-  ...createEntries(playerRoute, [
-    'settings.video_player_mode.context_multipart',
-    'settings.video_player_mode.context_collection',
-    'settings.video_player_mode.context_bangumi',
-    'settings.video_player_mode.context_watch_later',
-    'settings.video_player_mode.context_playlist',
-    'settings.video_player_mode.context_moments_dialog',
-  ], { keywordKeys: [...playerModeOptionKeys, 'settings.video_player_mode.inherit'] }),
-  ...createEntries(playerRoute, [
-    'settings.video_danmaku_default_state',
-    'settings.video_caption_default_state',
-  ], { keywordKeys: ['settings.video_default_state_opt'] }),
+  ...createEntries(playerRoute, ['settings.video_default_player_mode'], {
+    keywordKeys: playerModeOptionKeys,
+  }),
+  ...createEntries(
+    playerRoute,
+    [
+      'settings.video_player_mode.context_multipart',
+      'settings.video_player_mode.context_collection',
+      'settings.video_player_mode.context_bangumi',
+      'settings.video_player_mode.context_watch_later',
+      'settings.video_player_mode.context_playlist',
+      'settings.video_player_mode.context_moments_dialog',
+    ],
+    { keywordKeys: [...playerModeOptionKeys, 'settings.video_player_mode.inherit'] },
+  ),
+  ...createEntries(
+    playerRoute,
+    ['settings.video_danmaku_default_state', 'settings.video_caption_default_state'],
+    { keywordKeys: ['settings.video_default_state_opt'] },
+  ),
 
-  ...createEntries(autoPlayRoute, [
-    'settings.bilibili_features.auto_play',
-    'settings.group_random_play',
-    'settings.enable_random_play',
-    'settings.enable_custom_play_order_overrides',
-    'settings.custom_play_order_overrides',
-    'settings.group_random_play_settings',
-    'settings.min_videos_for_random',
-    'settings.group_playback_end_behavior',
-    'settings.auto_remove_watch_later_on_end',
-    'settings.auto_exit_fullscreen_on_end',
-    'settings.use_bilibili_default_auto_play',
-    'settings.group_video_type_end_behavior',
-    'settings.group_playlist_start_behavior',
-  ], {
-    // 该设置已移至连播页，保留原「视频播放」页的检索词以便旧入口习惯的用户仍能搜到。
-    keywordKeysByTitleKey: {
-      'settings.auto_exit_fullscreen_on_end': [
-        'settings.bilibili_features.video_playback',
-        'settings.group_player_display_mode',
+  ...createEntries(
+    autoPlayRoute,
+    [
+      'settings.bilibili_features.auto_play',
+      'settings.group_random_play',
+      'settings.enable_random_play',
+      'settings.enable_custom_play_order_overrides',
+      'settings.custom_play_order_overrides',
+      'settings.group_random_play_settings',
+      'settings.min_videos_for_random',
+      'settings.group_playback_end_behavior',
+      'settings.auto_remove_watch_later_on_end',
+      'settings.auto_exit_fullscreen_on_end',
+      'settings.use_bilibili_default_auto_play',
+      'settings.group_video_type_end_behavior',
+      'settings.group_playlist_start_behavior',
+    ],
+    {
+      // 该设置已移至连播页，保留原「视频播放」页的检索词以便旧入口习惯的用户仍能搜到。
+      keywordKeysByTitleKey: {
+        'settings.auto_exit_fullscreen_on_end': [
+          'settings.bilibili_features.video_playback',
+          'settings.group_player_display_mode',
+        ],
+      },
+    },
+  ),
+  ...createEntries(
+    autoPlayRoute,
+    [
+      'settings.auto_play_multipart',
+      'settings.auto_play_collection',
+      'settings.auto_play_watch_later',
+      'settings.auto_play_playlist',
+    ],
+    {
+      keywordKeys: [
+        ...autoPlayModeOptionKeys,
+        'settings.custom_play_order_inherit',
+        'settings.random_play_order_sequential',
+        'settings.random_play_order_reverse',
+        'settings.random_play_order_random',
       ],
     },
+  ),
+  ...createEntries(autoPlayRoute, ['settings.auto_play_recommend'], {
+    keywordKeys: autoPlayModeOptionKeys,
   }),
-  ...createEntries(autoPlayRoute, [
-    'settings.auto_play_multipart',
-    'settings.auto_play_collection',
-    'settings.auto_play_watch_later',
-    'settings.auto_play_playlist',
-  ], {
-    keywordKeys: [
-      ...autoPlayModeOptionKeys,
-      'settings.custom_play_order_inherit',
-      'settings.random_play_order_sequential',
-      'settings.random_play_order_reverse',
-      'settings.random_play_order_random',
-    ],
-  }),
-  ...createEntries(autoPlayRoute, [
-    'settings.auto_play_recommend',
-  ], { keywordKeys: autoPlayModeOptionKeys }),
-  ...createEntries(autoPlayRoute, [
-    'settings.default_custom_play_order',
-  ], {
+  ...createEntries(autoPlayRoute, ['settings.default_custom_play_order'], {
     keywordKeys: [
       'settings.random_play_order_sequential',
       'settings.random_play_order_reverse',
       'settings.random_play_order_random',
     ],
   }),
-  ...createEntries(autoPlayRoute, [
-    'settings.random_play_mode',
-  ], {
+  ...createEntries(autoPlayRoute, ['settings.random_play_mode'], {
     keywordKeys: ['settings.random_play_mode_manual', 'settings.random_play_mode_auto'],
   }),
-  ...createEntries(autoPlayRoute, [
-    'settings.collected_season_play_all_mode',
-  ], {
+  ...createEntries(autoPlayRoute, ['settings.collected_season_play_all_mode'], {
     keywordKeys: [
       'settings.collected_season_play_all_mode_beginning',
       'settings.collected_season_play_all_mode_latest',
@@ -740,19 +833,21 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     'settings.enable_frosted_glass',
     'settings.frosted_glass_blur_intensity',
     'settings.enable_liquid_segment_indicator',
-    'settings.disable_shadow',
+    'settings.enable_shadow',
     'settings.sidebar_cover_blur',
     'settings.group_color',
     'settings.theme',
     'settings.theme_schedule',
-    'settings.video_page_dark_mode',
+    'settings.video_page_follow_global_theme',
+    'settings.video_page_theme',
     'settings.theme_color',
     'settings.dark_mode_base_color',
     'settings.gradient_theme_color_background',
     'settings.follow_bilibili_evolved_color',
     'settings.group_page_style',
-    'settings.disable_background',
+    'settings.enable_background',
     'settings.video_page_glass_style',
+    'settings.video_page_glass_style_overlay',
     'settings.rounded_video_player',
     'settings.group_fonts',
     'settings.customize_font',
@@ -763,49 +858,56 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
     ...wallpaperTitleKeys,
   ]),
 
-  ...createEntries(playerRoute, [
-    'settings.menu_bilibili',
-  ], { targetTitleKey: 'settings.bilibili_features.video_playback' }),
-  ...createEntries({ ...commentsRoute, secondaryPage: 'anti-junk', secondaryTitleKey: 'anti_junk.title' }, [
-    'anti_junk.title',
-    'anti_junk.enabled',
-    'anti_junk.inspect',
-    'anti_junk.metadata',
-    'anti_junk.clear_all',
-    'anti_junk.records',
-    'anti_junk.library_title',
-    'anti_junk.library_summarize',
-    'anti_junk.library_clear',
-    'anti_junk.batch_size',
-    'anti_junk.requests_per_second',
-  ]),
-  ...createEntries(commentsRoute, [
-    'settings.bilibili_features.comments',
-    'settings.group_comments',
-    'settings.show_ip_location',
-    'settings.show_sex',
-    'settings.show_comment_host_tag',
-    'settings.enable_comment_reply_tree_display',
-    'settings.enable_comment_reply_tree_container',
-    'settings.comment_reply_tree_container_height',
-    'settings.comment_reply_tree_mode.title',
-    'settings.comment_reply_pagination_mode.title',
-    'settings.adjust_comment_image_height',
-    'settings.hide_comment_image_scrollbar',
-    'settings.image_viewer_close_at_bottom',
-  ], {
-    keywordKeysByTitleKey: {
-      'settings.comment_reply_tree_mode.title': [
-        'settings.comment_reply_tree_mode.line_collapse_main',
-        'settings.comment_reply_tree_mode.line_keep_main',
-        'settings.comment_reply_tree_mode.indent_only',
-      ],
-      'settings.comment_reply_pagination_mode.title': [
-        'settings.comment_reply_pagination_mode.load_more',
-        'settings.comment_reply_pagination_mode.pagination',
-      ],
-    },
+  ...createEntries(
+    { ...commentsRoute, secondaryPage: 'anti-junk', secondaryTitleKey: 'anti_junk.title' },
+    [
+      'anti_junk.title',
+      'anti_junk.enabled',
+      'anti_junk.inspect',
+      'anti_junk.metadata',
+      'anti_junk.clear_all',
+      'anti_junk.records',
+      'anti_junk.library_title',
+      'anti_junk.library_summarize',
+      'anti_junk.library_clear',
+      'anti_junk.batch_size',
+      'anti_junk.requests_per_second',
+    ],
+  ),
+  ...createEntries(playerRoute, ['settings.menu_bilibili'], {
+    targetTitleKey: 'settings.bilibili_features.video_playback',
   }),
+  ...createEntries(
+    commentsRoute,
+    [
+      'settings.bilibili_features.comments',
+      'settings.group_comments',
+      'settings.show_ip_location',
+      'settings.show_sex',
+      'settings.show_comment_host_tag',
+      'settings.enable_comment_reply_tree_display',
+      'settings.enable_comment_reply_tree_container',
+      'settings.comment_reply_tree_container_height',
+      'settings.comment_reply_tree_mode.title',
+      'settings.comment_reply_pagination_mode.title',
+      'settings.adjust_comment_image_height',
+      'settings.hide_comment_image_scrollbar',
+      'settings.image_viewer_close_at_bottom',
+    ],
+    {
+      keywordKeysByTitleKey: {
+        'settings.comment_reply_tree_mode.title': [
+          'settings.comment_reply_tree_mode.line_collapse_main',
+          'settings.comment_reply_tree_mode.line_keep_main',
+          'settings.comment_reply_tree_mode.indent_only',
+        ],
+        'settings.comment_reply_pagination_mode.title': [
+          'settings.comment_reply_pagination_mode.load_more',
+          'settings.comment_reply_pagination_mode.pagination',
+        ],
+      },
+    },
+  ),
   ...createEntries(vipFeaturesRoute, [
     'settings.bilibili_features.vip_features',
     'settings.show_bcoin_receive_reminder',
@@ -815,6 +917,7 @@ const baseSettingsSearchEntries: SettingsSearchEntry[] = [
   ...createEntries(compatibilityRoute, [
     'settings.menu_compatibility',
     'settings.group_common',
+    'settings.enable_native_home_feed_history',
     'settings.prevent_mobile_redirect',
     'settings.depersonalize_search_results',
     ...(isFirefoxBuild ? ['settings.enable_firefox_scrollbar_repaint'] : []),
@@ -920,11 +1023,14 @@ const fallbackTargetKeysByTitleKey: Record<string, string> = {
   'settings.comment_reply_pagination_mode.title': 'settings.enable_comment_reply_tree_display',
   'settings.custom_play_order_overrides': 'settings.enable_random_play',
   'settings.default_custom_play_order': 'settings.enable_random_play',
+  'settings.default_playback_rate': 'settings.enable_default_playback_rate',
   'settings.enable_comment_reply_tree_container': 'settings.enable_comment_reply_tree_display',
   'settings.enable_custom_play_order_overrides': 'settings.enable_random_play',
   'settings.enable_wallpaper_masking': 'settings.individually_set_search_page_wallpaper',
+  'settings.individually_set_dark_mode_wallpaper':
+    'settings.individually_set_search_page_wallpaper',
   'settings.frosted_glass_blur_intensity': 'settings.enable_frosted_glass',
-  'settings.gradient_theme_color_background': 'settings.disable_background',
+  'settings.gradient_theme_color_background': 'settings.enable_background',
   'settings.immersive_auto_next': 'settings.show_immersive_mode_entry',
   'settings.immersive_auto_play': 'settings.show_immersive_mode_entry',
   'settings.immersive_keyboard_switch': 'settings.show_immersive_mode_entry',
@@ -943,10 +1049,12 @@ const fallbackTargetKeysByTitleKey: Record<string, string> = {
   'settings.show_home_button_in_touch_mode': 'settings.topbar_logo_and_channels',
   'settings.sidebar_position': 'settings.module_sidebar',
   'settings.theme_schedule': 'settings.theme',
+  'settings.video_page_theme': 'settings.video_page_follow_global_theme',
   'settings.third_party_licenses': 'settings.open_source_license',
   'settings.video_player_mode.context_bangumi': 'settings.video_player_mode.enable_overrides',
   'settings.video_player_mode.context_collection': 'settings.video_player_mode.enable_overrides',
-  'settings.video_player_mode.context_moments_dialog': 'settings.video_player_mode.enable_overrides',
+  'settings.video_player_mode.context_moments_dialog':
+    'settings.video_player_mode.enable_overrides',
   'settings.video_player_mode.context_multipart': 'settings.video_player_mode.enable_overrides',
   'settings.video_player_mode.context_playlist': 'settings.video_player_mode.enable_overrides',
   'settings.video_player_mode.context_watch_later': 'settings.video_player_mode.enable_overrides',
@@ -957,33 +1065,52 @@ const fallbackTargetKeysByTitleKey: Record<string, string> = {
 }
 
 const fallbackTargetKeysByEntry: Record<string, string> = {
-  'BewlyPages|settings.plugin.moments|settings.enable_video_ctrl_bar_on_video_card': 'settings.moments_enable_video_preview',
-  'BewlyComponents|settings.plugin.video_card|settings.enable_video_ctrl_bar_on_video_card': 'settings.enable_video_preview',
-  'BewlyPages|settings.plugin.moments|settings.video_preview_swipe_seek': 'settings.moments_enable_video_preview',
-  'BewlyComponents|settings.plugin.video_card|settings.video_preview_swipe_seek': 'settings.enable_video_preview',
-  'BewlyPages|settings.plugin.moments|settings.hover_video_card_delayed': 'settings.moments_enable_video_preview',
-  'BewlyComponents|settings.plugin.video_card|settings.hover_video_card_delayed': 'settings.enable_video_preview',
-  'BewlyPages|settings.plugin.moments|settings.only_cover_video_preview': 'settings.moments_enable_video_preview',
-  'BewlyComponents|settings.plugin.video_card|settings.only_cover_video_preview': 'settings.enable_video_preview',
-  'BewlyPages|settings.plugin.search|settings.choose_ur_wallpaper': 'settings.individually_set_search_page_wallpaper',
-  'BewlyPages|settings.plugin.search|settings.image_url': 'settings.individually_set_search_page_wallpaper',
-  'BewlyPages|settings.plugin.search|settings.wallpaper_mask_opacity': 'settings.individually_set_search_page_wallpaper',
-  'BewlyPages|settings.plugin.search|settings.wallpaper_blur_intensity': 'settings.individually_set_search_page_wallpaper',
+  'BewlyPages|settings.plugin.moments|settings.enable_video_ctrl_bar_on_video_card':
+    'settings.moments_enable_video_preview',
+  'BewlyComponents|settings.plugin.video_card|settings.enable_video_ctrl_bar_on_video_card':
+    'settings.enable_video_preview',
+  'BewlyPages|settings.plugin.moments|settings.video_preview_swipe_seek':
+    'settings.moments_enable_video_preview',
+  'BewlyComponents|settings.plugin.video_card|settings.video_preview_swipe_seek':
+    'settings.enable_video_preview',
+  'BewlyPages|settings.plugin.moments|settings.hover_video_card_delayed':
+    'settings.moments_enable_video_preview',
+  'BewlyComponents|settings.plugin.video_card|settings.hover_video_card_delayed':
+    'settings.enable_video_preview',
+  'BewlyPages|settings.plugin.moments|settings.only_cover_video_preview':
+    'settings.moments_enable_video_preview',
+  'BewlyComponents|settings.plugin.video_card|settings.only_cover_video_preview':
+    'settings.enable_video_preview',
+  'BewlyPages|settings.plugin.search|settings.choose_ur_wallpaper':
+    'settings.individually_set_search_page_wallpaper',
+  'BewlyPages|settings.plugin.search|settings.image_url':
+    'settings.individually_set_search_page_wallpaper',
+  'BewlyPages|settings.plugin.search|settings.wallpaper_theme_target':
+    'settings.individually_set_search_page_wallpaper',
+  'BewlyPages|settings.plugin.search|settings.wallpaper_mask_opacity':
+    'settings.individually_set_search_page_wallpaper',
+  'BewlyPages|settings.plugin.search|settings.wallpaper_blur_intensity':
+    'settings.individually_set_search_page_wallpaper',
   'Appearance||settings.choose_ur_wallpaper': 'settings.wallpaper_mode',
-  'Appearance||settings.enable_wallpaper_masking': 'settings.disable_background',
+  'Appearance||settings.enable_wallpaper_masking': 'settings.enable_background',
   'Appearance||settings.image_url': 'settings.wallpaper_mode',
+  'Appearance||settings.individually_set_dark_mode_wallpaper': 'settings.enable_background',
+  'Appearance||settings.wallpaper_theme_target': 'settings.individually_set_dark_mode_wallpaper',
   'Appearance||settings.wallpaper_blur_intensity': 'settings.enable_wallpaper_masking',
-  'Appearance||settings.wallpaper_cache_time': 'settings.disable_background',
+  'Appearance||settings.wallpaper_cache_time': 'settings.enable_background',
   'Appearance||settings.wallpaper_mask_opacity': 'settings.enable_wallpaper_masking',
-  'Appearance||settings.wallpaper_mode': 'settings.disable_background',
+  'Appearance||settings.wallpaper_mode': 'settings.enable_background',
 }
 
 function getSearchEntryKey(entry: SettingsSearchEntry) {
   return `${entry.menu}|${entry.secondaryTitleKey ?? ''}|${entry.titleKey ?? ''}`
 }
 
-export const settingsSearchEntries: SettingsSearchEntry[] = baseSettingsSearchEntries.map((entry) => {
-  const fallbackTargetKey = fallbackTargetKeysByEntry[getSearchEntryKey(entry)]
-    ?? (entry.titleKey ? fallbackTargetKeysByTitleKey[entry.titleKey] : undefined)
-  return fallbackTargetKey ? { ...entry, fallbackTargetKey } : entry
-})
+export const settingsSearchEntries: SettingsSearchEntry[] = baseSettingsSearchEntries.map(
+  (entry) => {
+    const fallbackTargetKey =
+      fallbackTargetKeysByEntry[getSearchEntryKey(entry)] ??
+      (entry.titleKey ? fallbackTargetKeysByTitleKey[entry.titleKey] : undefined)
+    return fallbackTargetKey ? { ...entry, fallbackTargetKey } : entry
+  },
+)

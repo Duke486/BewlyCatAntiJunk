@@ -27,16 +27,26 @@ const ready = ref(false)
 const status = ref('')
 const error = ref('')
 const query = ref('')
-const data = ref<AntiJunkData>({ records: [], cache: [], checked: 0, blocked: 0, lastError: '', lastSuccess: 0 })
+const data = ref<AntiJunkData>({
+  records: [],
+  cache: [],
+  checked: 0,
+  blocked: 0,
+  lastError: '',
+  lastSuccess: 0,
+})
 const records = computed(() => {
   const needle = query.value.trim().toLowerCase()
-  return data.value.records.filter(item => !needle || `${item.text} ${item.author} ${item.title}`.toLowerCase().includes(needle))
+  return data.value.records.filter(
+    (item) => !needle || `${item.text} ${item.author} ${item.title}`.toLowerCase().includes(needle),
+  )
 })
-const request = (action: string, payload?: unknown) => browser.runtime.sendMessage({ type: ANTI_JUNK_MESSAGE, action, payload })
+const request = (action: string, payload?: unknown) =>
+  browser.runtime.sendMessage({ type: ANTI_JUNK_MESSAGE, action, payload })
 
 async function refresh(loadConfig = false) {
   try {
-    const result = await request('read') as { config: AntiJunkConfig, data: AntiJunkData }
+    const result = (await request('read')) as { config: AntiJunkConfig; data: AntiJunkData }
     data.value = result.data
     if (loadConfig) {
       enabled.value = result.config.enabled
@@ -47,8 +57,7 @@ async function refresh(loadConfig = false) {
       apiKey.value = result.config.apiKey
     }
     ready.value = true
-  }
-  catch {
+  } catch {
     error.value = 'storage-error'
   }
 }
@@ -58,16 +67,19 @@ async function save() {
   error.value = ''
   status.value = ''
   try {
-    const result = await request('save', { enabled: enabled.value, inspect: inspect.value, metadata: metadata.value, batchSize: Number(batchSize.value), requestsPerSecond: Number(requestsPerSecond.value), apiKey: apiKey.value }) as { error?: string }
-    if (result.error)
-      error.value = result.error
-    else
-      status.value = t('anti_junk.saved')
-  }
-  catch {
+    const result = (await request('save', {
+      enabled: enabled.value,
+      inspect: inspect.value,
+      metadata: metadata.value,
+      batchSize: Number(batchSize.value),
+      requestsPerSecond: Number(requestsPerSecond.value),
+      apiKey: apiKey.value,
+    })) as { error?: string }
+    if (result.error) error.value = result.error
+    else status.value = t('anti_junk.saved')
+  } catch {
     error.value = 'storage-error'
-  }
-  finally {
+  } finally {
     busy.value = false
   }
 }
@@ -77,16 +89,12 @@ async function test() {
   error.value = ''
   status.value = ''
   try {
-    const result = await request('test') as { error?: string }
-    if (result.error)
-      error.value = result.error
-    else
-      status.value = t('anti_junk.test_ok')
-  }
-  catch {
+    const result = (await request('test')) as { error?: string }
+    if (result.error) error.value = result.error
+    else status.value = t('anti_junk.test_ok')
+  } catch {
     error.value = 'network'
-  }
-  finally {
+  } finally {
     busy.value = false
   }
 }
@@ -96,25 +104,22 @@ async function clearRecords(all = false) {
   error.value = ''
   status.value = ''
   try {
-    const result = await request('clear', { all }) as { error?: string }
+    const result = (await request('clear', { all })) as { error?: string }
     if (result.error) {
       error.value = result.error
       return
     }
     await refresh()
     status.value = t(all ? 'anti_junk.cleared_all' : 'anti_junk.cleared_records')
-  }
-  catch {
+  } catch {
     error.value = 'storage-error'
-  }
-  finally {
+  } finally {
     busy.value = false
   }
 }
 
 function storageChanged(changes: Record<string, browser.Storage.StorageChange>, area: string) {
-  if (area === 'local' && changes[ANTI_JUNK_DATA])
-    void refresh()
+  if (area === 'local' && changes[ANTI_JUNK_DATA]) void refresh()
 }
 browser.storage.onChanged.addListener(storageChanged)
 onScopeDispose(() => browser.storage.onChanged.removeListener(storageChanged))
@@ -126,22 +131,43 @@ onMounted(() => void refresh(true))
     <SettingsItem :title="t('anti_junk.enabled')" :desc="t('anti_junk.scope')" right-width="auto">
       <Radio v-model="enabled" :disabled="busy || !ready" />
     </SettingsItem>
-    <SettingsItem :title="t('anti_junk.inspect')" :desc="t('anti_junk.inspect_desc')" right-width="auto">
+    <SettingsItem
+      :title="t('anti_junk.inspect')"
+      :desc="t('anti_junk.inspect_desc')"
+      right-width="auto"
+    >
       <Radio v-model="inspect" :disabled="busy || !ready" />
     </SettingsItem>
-    <SettingsItem :title="t('anti_junk.metadata')" :desc="t('anti_junk.metadata_desc')" right-width="auto">
+    <SettingsItem
+      :title="t('anti_junk.metadata')"
+      :desc="t('anti_junk.metadata_desc')"
+      right-width="auto"
+    >
       <Radio v-model="metadata" :disabled="busy || !ready" />
     </SettingsItem>
     <SettingsItem :title="t('anti_junk.batch_size')" :desc="t('anti_junk.batch_size_desc')">
       <Input
-        v-model="batchSize" type="number" :min="1" :max="50" :step="1"
-        :disabled="busy || !ready" :aria-label="t('anti_junk.batch_size')"
+        v-model="batchSize"
+        type="number"
+        :min="1"
+        :max="50"
+        :step="1"
+        :disabled="busy || !ready"
+        :aria-label="t('anti_junk.batch_size')"
       />
     </SettingsItem>
-    <SettingsItem :title="t('anti_junk.requests_per_second')" :desc="t('anti_junk.requests_per_second_desc')">
+    <SettingsItem
+      :title="t('anti_junk.requests_per_second')"
+      :desc="t('anti_junk.requests_per_second_desc')"
+    >
       <Input
-        v-model="requestsPerSecond" type="number" :min="1" :max="20" :step="1"
-        :disabled="busy || !ready" :aria-label="t('anti_junk.requests_per_second')"
+        v-model="requestsPerSecond"
+        type="number"
+        :min="1"
+        :max="20"
+        :step="1"
+        :disabled="busy || !ready"
+        :aria-label="t('anti_junk.requests_per_second')"
       />
     </SettingsItem>
     <p v-if="data.metrics" class="anti-junk-metrics">
@@ -151,8 +177,10 @@ onMounted(() => void refresh(true))
       <label>DeepSeek API Key</label>
       <div class="key-row">
         <Input
-          v-model="apiKey" :type="showKey ? 'text' : 'password'"
-          aria-label="DeepSeek API Key" placeholder="sk-…"
+          v-model="apiKey"
+          :type="showKey ? 'text' : 'password'"
+          aria-label="DeepSeek API Key"
+          placeholder="sk-…"
         />
         <Button :disabled="busy || !ready" @click="showKey = !showKey">
           {{ t(showKey ? 'anti_junk.conceal_key' : 'anti_junk.show_key') }}
@@ -183,9 +211,21 @@ onMounted(() => void refresh(true))
   <AntiJunkLibrary />
   <SettingsItemGroup :title="t('anti_junk.records')" :desc="t('anti_junk.record_note')">
     <div class="anti-junk-settings">
-      <p>{{ t('anti_junk.stats', { checked: data.checked, blocked: data.blocked, count: data.records.length }) }}</p>
+      <p>
+        {{
+          t('anti_junk.stats', {
+            checked: data.checked,
+            blocked: data.blocked,
+            count: data.records.length,
+          })
+        }}
+      </p>
       <div class="toolbar">
-        <Input v-model="query" :placeholder="t('anti_junk.search')" :aria-label="t('anti_junk.search')" />
+        <Input
+          v-model="query"
+          :placeholder="t('anti_junk.search')"
+          :aria-label="t('anti_junk.search')"
+        />
         <Button :disabled="busy" @click="refresh()">
           {{ t('anti_junk.refresh') }}
         </Button>
@@ -201,12 +241,23 @@ onMounted(() => void refresh(true))
         <p v-if="!records.length">
           {{ t('anti_junk.empty') }}
         </p>
-        <article v-for="record in records" :key="`${record.oid}:${record.id}:${record.time}`" class="record">
+        <article
+          v-for="record in records"
+          :key="`${record.oid}:${record.id}:${record.time}`"
+          class="record"
+        >
           <p v-if="record.rule">
-            {{ t('anti_junk.decision_detail', { rule: t(`anti_junk.rules.${record.rule}`), round: record.round ?? 0 }) }}
+            {{
+              t('anti_junk.decision_detail', {
+                rule: t(`anti_junk.rules.${record.rule}`),
+                round: record.round ?? 0,
+              })
+            }}
           </p>
           <header>{{ record.author }} · {{ new Date(record.time).toLocaleString() }}</header>
-          <a :href="record.url" target="_blank" rel="noopener noreferrer">{{ record.title || record.url }}</a>
+          <a :href="record.url" target="_blank" rel="noopener noreferrer">{{
+            record.title || record.url
+          }}</a>
           <p class="comment-text">
             {{ record.text }}
           </p>

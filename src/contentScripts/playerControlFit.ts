@@ -9,34 +9,27 @@ const COLLAPSED_CLASS = 'bewly-player-control-collapsed'
 const CONTROL_BAR_SELECTOR = '.bpx-player-control-bottom-right'
 // 按钮宽度含小数，允许不足 1px 的挤压，避免刚好放得下时被误收起。
 const SUBPIXEL_TOLERANCE = 1
-// 全屏、网页全屏等过渡期间底栏每帧都在变宽，测量会逐帧强制重排；等尺寸停止变化后再测一次。
-const RESIZE_SETTLE_DELAY = 150
+// 全屏、网页全屏等过渡期间底栏每帧都在变宽，测量会逐帧强制重排；等过渡与尺寸稳定后再测一次。
+const RESIZE_SETTLE_DELAY = 250
 
 let observedControlBottom: HTMLElement | null = null
 let resizeObserver: ResizeObserver | null = null
 let fitFrame: number | null = null
 let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null
 
-// 右侧分区及其按钮会被 flex 压缩而不溢出，不能直接看当前布局。
-// 暂停右侧收缩后，左侧定宽、中间弹幕区缩到最小宽度（普通模式为空），右侧仍超出底栏即放不下。
-function fitsControlBottom(controlBottom: HTMLElement, right: HTMLElement): boolean {
+function measureControlBottomRight(controlBottom: HTMLElement): number {
   const style = getComputedStyle(controlBottom)
-  const contentRight = controlBottom.getBoundingClientRect().right
-    - Number.parseFloat(style.paddingRight)
-    - Number.parseFloat(style.borderRightWidth)
-
-  const previousFlexShrink = right.style.flexShrink
-  right.style.flexShrink = '0'
-  const rightEdge = right.getBoundingClientRect().right
-  right.style.flexShrink = previousFlexShrink
-
-  return rightEdge <= contentRight + SUBPIXEL_TOLERANCE
+  return (
+    controlBottom.getBoundingClientRect().right -
+    Number.parseFloat(style.paddingRight) -
+    Number.parseFloat(style.borderRightWidth)
+  )
 }
 
 function findManagedControls(right: HTMLElement): HTMLElement[] {
-  return MANAGED_CONTROL_SELECTORS
-    .map(selector => right.querySelector<HTMLElement>(selector))
-    .filter((control): control is HTMLElement => Boolean(control))
+  return MANAGED_CONTROL_SELECTORS.map((selector) =>
+    right.querySelector<HTMLElement>(selector),
+  ).filter((control): control is HTMLElement => Boolean(control))
 }
 
 function stopObservingControlBottom() {
@@ -49,6 +42,9 @@ function stopObservingControlBottom() {
   }
 }
 
+// 右侧分区及其按钮会被 flex 压缩而不溢出，不能直接看当前布局。
+// 暂停右侧收缩后，左侧定宽、中间弹幕区缩到最小宽度（普通模式为空），右侧仍超出底栏即放不下。
+// 绝大多数尺寸下全部按钮都能放下：先整体展开测一次，仅溢出时再按低优先级顺序逐个收起，避免反复强制重排。
 function fitControls() {
   fitFrame = null
   const controlBottom = observedControlBottom
@@ -65,30 +61,34 @@ function fitControls() {
   }
 
   // 视口未显示播放器时无法测量，等尺寸变化后再判断。
-  if (!controlBottom.clientWidth)
-    return
+  if (!controlBottom.clientWidth) return
 
-  controls.forEach(control => control.classList.add(COLLAPSED_CLASS))
-  for (const control of controls) {
-    control.classList.remove(COLLAPSED_CLASS)
-    if (!fitsControlBottom(controlBottom, right)) {
-      control.classList.add(COLLAPSED_CLASS)
-      break
+  const contentRight = measureControlBottomRight(controlBottom)
+  const previousFlexShrink = right.style.flexShrink
+  right.style.flexShrink = '0'
+  try {
+    for (const control of controls) control.classList.remove(COLLAPSED_CLASS)
+
+    if (right.getBoundingClientRect().right <= contentRight + SUBPIXEL_TOLERANCE) return
+
+    for (let i = controls.length - 1; i >= 0; i--) {
+      controls[i].classList.add(COLLAPSED_CLASS)
+      if (right.getBoundingClientRect().right <= contentRight + SUBPIXEL_TOLERANCE) return
     }
+  } finally {
+    right.style.flexShrink = previousFlexShrink
   }
 }
 
 function scheduleFit() {
-  if (fitFrame !== null)
-    return
+  if (fitFrame !== null) return
 
   // 延到下一帧再改 DOM，避免在 ResizeObserver 回调内触发循环告警。
   fitFrame = requestAnimationFrame(fitControls)
 }
 
 function scheduleFitAfterResize() {
-  if (resizeSettleTimer !== null)
-    clearTimeout(resizeSettleTimer)
+  if (resizeSettleTimer !== null) clearTimeout(resizeSettleTimer)
 
   resizeSettleTimer = setTimeout(() => {
     resizeSettleTimer = null
@@ -97,8 +97,7 @@ function scheduleFitAfterResize() {
 }
 
 function observeControlBottom(controlBottom: HTMLElement) {
-  if (observedControlBottom === controlBottom && resizeObserver)
-    return
+  if (observedControlBottom === controlBottom && resizeObserver) return
 
   stopObservingControlBottom()
   observedControlBottom = controlBottom
@@ -106,13 +105,12 @@ function observeControlBottom(controlBottom: HTMLElement) {
   resizeObserver = observer
   // 底栏尺寸覆盖播放器缩放和模式切换；分区尺寸覆盖原生按钮增减、时间与清晰度文字、弹幕发送区变化。
   observer.observe(controlBottom)
-  Array.from(controlBottom.children).forEach(section => observer.observe(section))
+  Array.from(controlBottom.children).forEach((section) => observer.observe(section))
 }
 
 export function schedulePlayerControlFit(control: HTMLElement) {
   const controlBottom = control.closest<HTMLElement>(CONTROL_BAR_SELECTOR)?.parentElement
-  if (!controlBottom)
-    return
+  if (!controlBottom) return
 
   observeControlBottom(controlBottom)
   scheduleFit()

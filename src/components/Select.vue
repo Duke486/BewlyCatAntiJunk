@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import { useBewlyApp } from '~/composables/useAppProvider'
 
-const props = withDefaults(defineProps<{
-  options: readonly OptionType[]
-  modelValue: any
-  disabled?: boolean
-  /** 在 Dialog 内使用时，下拉菜单及其滚动遮罩需高于对话框层级 */
-  inDialog?: boolean
-}>(), {
-  disabled: false,
-  inDialog: false,
-})
+const props = withDefaults(
+  defineProps<{
+    options: readonly OptionType[]
+    modelValue: any
+    disabled?: boolean
+    /** 在 Dialog 内使用时，下拉菜单及其滚动遮罩需高于对话框层级 */
+    inDialog?: boolean
+    /** 触发器的无障碍名称，用于设置行等无可见关联标签的场景 */
+    ariaLabel?: string
+    /** 当前取值不匹配任何选项时展示的占位文案 */
+    placeholder?: string
+  }>(),
+  {
+    disabled: false,
+    inDialog: false,
+    ariaLabel: undefined,
+    placeholder: '',
+  },
+)
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
@@ -25,22 +34,24 @@ const DROPDOWN_MARGIN = 8
 // UX 上限：菜单不应无限高，实际高度始终与可用空间取小
 const DROPDOWN_MAX_HEIGHT = 300
 
-const label = ref<string>('')
+// 显示文本始终由真实 modelValue 派生：语言切换、选项变化或父组件拒绝/回滚取值（如取消确认框）时自动同步
+const label = computed(
+  () =>
+    props.options?.find((item: OptionType) => item.value === props.modelValue)?.label ??
+    props.placeholder,
+)
 const showOptions = ref<boolean>(false)
-const dropdownPosition = ref({ top: 0, left: 0, width: 0, openUp: false, maxHeight: DROPDOWN_MAX_HEIGHT })
+const dropdownPosition = ref({
+  top: 0,
+  left: 0,
+  width: 0,
+  openUp: false,
+  maxHeight: DROPDOWN_MAX_HEIGHT,
+})
 const containerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 
-onUpdated(() => {
-  // fix the issue when the dropdown menu text doesn't update in real-time based on the updated page language
-  if (props.options)
-    label.value = `${props.options.find((item: OptionType) => item.value === props.modelValue)?.label}`
-})
-
 onMounted(() => {
-  if (props.options)
-    label.value = `${props.options.find((item: OptionType) => item.value === props.modelValue)?.label}`
-
   // 窗口大小变化时按真实高度重算位置
   window.addEventListener('resize', handleWindowResize)
 })
@@ -51,28 +62,24 @@ onUnmounted(() => {
 })
 
 function handleWindowResize() {
-  if (!showOptions.value)
-    return
+  if (!showOptions.value) return
   calculatePosition(dropdownRef.value?.scrollHeight ?? DROPDOWN_MAX_HEIGHT)
 }
 
 /** 计算下拉菜单绝对位置，空间不足时自动向上弹出并限制最大高度 */
 function calculatePosition(desiredHeight: number) {
-  if (!containerRef.value)
-    return
+  if (!containerRef.value) return
 
   const rect = containerRef.value.getBoundingClientRect()
   const spaceBelow = window.innerHeight - rect.bottom - DROPDOWN_MARGIN
   const spaceAbove = rect.top - DROPDOWN_MARGIN
 
   // 下方放不下且上方更宽敞时向上弹出；最大高度限制在所选方向的可用空间内
-  const openUp = desiredHeight > 0
-    ? spaceBelow < desiredHeight && spaceAbove > spaceBelow
-    : false
+  const openUp = desiredHeight > 0 ? spaceBelow < desiredHeight && spaceAbove > spaceBelow : false
   const availableSpace = openUp ? spaceAbove : spaceBelow
 
   dropdownPosition.value = {
-    top: (openUp ? rect.top : rect.bottom),
+    top: openUp ? rect.top : rect.bottom,
     left: rect.left,
     width: rect.width,
     openUp,
@@ -82,8 +89,7 @@ function calculatePosition(desiredHeight: number) {
 }
 
 function openOptions() {
-  if (props.disabled)
-    return
+  if (props.disabled) return
 
   // 先写好坐标再挂载，避免 enter 动画把 top/left 从 0 过渡到真实位置（左上角飞入）
   calculatePosition(DROPDOWN_MAX_HEIGHT)
@@ -91,38 +97,38 @@ function openOptions() {
 }
 
 function toggleOptions() {
-  if (props.disabled)
-    return
+  if (props.disabled) return
 
-  if (showOptions.value)
-    showOptions.value = false
-  else
-    openOptions()
+  if (showOptions.value) showOptions.value = false
+  else openOptions()
 }
 
 // 打开后再用真实内容高度校正方向与 maxHeight（此时坐标已接近正确，不再从 0,0 起步）
-watch(showOptions, async (visible) => {
-  if (!visible)
-    return
+watch(
+  showOptions,
+  async (visible) => {
+    if (!visible) return
 
-  await nextTick()
-  if (dropdownRef.value)
-    calculatePosition(dropdownRef.value.scrollHeight)
-}, { flush: 'post' })
+    await nextTick()
+    if (dropdownRef.value) calculatePosition(dropdownRef.value.scrollHeight)
+  },
+  { flush: 'post' },
+)
 
-watch(() => props.disabled, (disabled) => {
-  if (disabled) {
-    showOptions.value = false
-    window.removeEventListener('click', closeOptions)
-  }
-})
+watch(
+  () => props.disabled,
+  (disabled) => {
+    if (disabled) {
+      showOptions.value = false
+      window.removeEventListener('click', closeOptions)
+    }
+  },
+)
 
 function onClickOption(val: OptionType) {
-  if (props.disabled)
-    return
+  if (props.disabled) return
 
   window.removeEventListener('click', closeOptions)
-  label.value = val.label
   emit('update:modelValue', val.value)
   emit('change', val.value)
   showOptions.value = false
@@ -134,8 +140,7 @@ function closeOptions() {
 
 /** when you click on it outside, the selection option will be turned off  */
 function onMouseLeave() {
-  if (!props.disabled)
-    window.addEventListener('click', closeOptions)
+  if (!props.disabled) window.addEventListener('click', closeOptions)
 }
 
 function onMouseEnter() {
@@ -156,6 +161,7 @@ function onMouseEnter() {
       :class="{ 'is-disabled': props.disabled }"
       :aria-disabled="props.disabled"
       :aria-expanded="showOptions"
+      :aria-label="ariaLabel"
       p="x-4 y-2"
       bg="$bew-fill-1"
       rounded="$bew-interactive-radius"
@@ -163,16 +169,13 @@ function onMouseEnter() {
       cursor="pointer"
       flex="~"
       justify="between"
-      items="center" w="full"
-      :ring="showOptions ? '2px $bew-theme-color' : ''" duration-300
+      items="center"
+      w="full"
+      :ring="showOptions ? '2px $bew-theme-color' : ''"
+      duration-300
       @click="toggleOptions"
     >
-      <div
-        truncate
-        overflow="hidden"
-        m="r-2"
-        v-text="label === 'undefined' ? '' : label"
-      />
+      <div truncate overflow="hidden" m="r-2" class="min-h-[1.5em]" v-text="label" />
 
       <div class="select-arrow-slot" flex="none" grid place-items="center" m="l-2">
         <!-- arrow -->
@@ -201,13 +204,18 @@ function onMouseEnter() {
             width: `${dropdownPosition.width}px`,
             maxHeight: `${dropdownPosition.maxHeight}px`,
             // 向上弹出时锚点移到触发器顶部，用 transform 上移自身高度，无需先测量实际高度
-            transform: dropdownPosition.openUp ? `translateY(calc(-100% - ${DROPDOWN_MARGIN}px))` : undefined,
+            transform: dropdownPosition.openUp
+              ? `translateY(calc(-100% - ${DROPDOWN_MARGIN}px))`
+              : undefined,
             marginTop: dropdownPosition.openUp ? undefined : `${DROPDOWN_MARGIN}px`,
             zIndex: inDialog ? 'calc(var(--bew-z-dialog) + 2)' : 10004,
           }"
-          pos="fixed" p="2"
+          pos="fixed"
+          p="2"
           flex="~ col gap-1"
-          w="full" overflow-y-overlay will-change-transform
+          w="full"
+          overflow-y-overlay
+          will-change-transform
         >
           <div
             v-for="option in options"
@@ -230,7 +238,9 @@ function onMouseEnter() {
       <div
         v-if="showOptions"
         data-layout-edit-control
-        pos="fixed top-0 left-0" w-full h-full
+        pos="fixed top-0 left-0"
+        w-full
+        h-full
         :style="{ zIndex: inDialog ? 'calc(var(--bew-z-dialog) + 1)' : 10003 }"
         @wheel="closeOptions"
       />

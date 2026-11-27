@@ -3,7 +3,12 @@ import { useThrottleFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
 import Select from '~/components/Select.vue'
-import { FROSTED_GLASS_BLUR_MAX_PX, FROSTED_GLASS_BLUR_MIN_PX, localSettings, settings } from '~/logic'
+import {
+  FROSTED_GLASS_BLUR_MAX_PX,
+  FROSTED_GLASS_BLUR_MIN_PX,
+  localSettings,
+  settings,
+} from '~/logic'
 import { requestBilibiliTab } from '~/utils/settingsPage'
 
 import ChangeWallpaper from '../components/ChangeWallpaper.vue'
@@ -16,13 +21,19 @@ const { t } = useI18n()
 const themeScheduleStart = ref(settings.value.themeScheduleStart)
 const themeScheduleEnd = ref(settings.value.themeScheduleEnd)
 
-watch(() => settings.value.themeScheduleStart, (value) => {
-  themeScheduleStart.value = value
-})
+watch(
+  () => settings.value.themeScheduleStart,
+  (value) => {
+    themeScheduleStart.value = value
+  },
+)
 
-watch(() => settings.value.themeScheduleEnd, (value) => {
-  themeScheduleEnd.value = value
-})
+watch(
+  () => settings.value.themeScheduleEnd,
+  (value) => {
+    themeScheduleEnd.value = value
+  },
+)
 
 function saveThemeSchedule() {
   settings.value.themeScheduleStart = themeScheduleStart.value
@@ -75,10 +86,11 @@ const isCustomDarkModeBaseColor = computed<boolean>(() => {
 
 // Bilibili Evolved 的主题色只存在于 B 站页面，没有打开的页面时使用默认色。
 const bilibiliEvolvedThemeColor = ref('#00a1d6')
-requestBilibiliTab<string>({ action: 'getEvolvedThemeColor' }).then((color) => {
-  if (color)
-    bilibiliEvolvedThemeColor.value = color
-}).catch(() => {})
+requestBilibiliTab<string>({ action: 'getEvolvedThemeColor' })
+  .then((color) => {
+    if (color) bilibiliEvolvedThemeColor.value = color
+  })
+  .catch(() => {})
 
 const fontPreferenceOptions = computed(() => {
   return [
@@ -97,7 +109,7 @@ const fontPreferenceOptions = computed(() => {
   ]
 })
 
-const themeOptions = computed<Array<{ value: string, label: string }>>(() => {
+const themeOptions = computed<Array<{ value: string; label: string }>>(() => {
   return [
     {
       label: t('settings.theme_opt.dark'),
@@ -118,14 +130,12 @@ const themeOptions = computed<Array<{ value: string, label: string }>>(() => {
   ]
 })
 
-watch(() => settings.value.wallpaper, (newValue) => {
-  changeWallpaper(newValue)
-})
-
 // 插件页面和视频页玻璃风格共用同一套壁纸与渐变设置，两者任一生效都要保留入口。
 const showGlobalBackgroundSettings = computed(() => {
-  return (!settings.value.useOriginalBilibiliHomepage && !settings.value.disableBackground)
-    || settings.value.videoPageGlassStyle
+  return (
+    (!settings.value.useOriginalBilibiliHomepage && settings.value.enableBackground) ||
+    settings.value.videoPageGlassStyle
+  )
 })
 
 function changeThemeColor(color: string) {
@@ -136,17 +146,10 @@ const changeThemeColorThrottle = useThrottleFn((color: string) => changeThemeCol
 function changeDarkModeBaseColor(color: string) {
   settings.value.darkModeBaseColor = color
 }
-const changeDarkModeBaseColorThrottle = useThrottleFn((color: string) => changeDarkModeBaseColor(color), 100)
-
-function changeWallpaper(url: string) {
-  // If you had already set the wallpaper, it enables the wallpaper masking to prevent text hard to see
-  if (url)
-    settings.value.enableWallpaperMasking = true
-  else
-    settings.value.enableWallpaperMasking = false
-
-  settings.value.wallpaper = url
-}
+const changeDarkModeBaseColorThrottle = useThrottleFn(
+  (color: string) => changeDarkModeBaseColor(color),
+  100,
+)
 </script>
 
 <template>
@@ -194,8 +197,8 @@ function changeWallpaper(url: string) {
         </template>
         <Radio v-model="settings.enableLiquidSegmentIndicator" />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.disable_shadow')" right-width="auto">
-        <Radio v-model="settings.disableShadow" />
+      <SettingsItem :title="$t('settings.enable_shadow')" right-width="auto">
+        <Radio v-model="settings.enableShadow" />
       </SettingsItem>
       <SettingsItem
         v-if="!settings.useOriginalBilibiliHomepage"
@@ -218,55 +221,119 @@ function changeWallpaper(url: string) {
         right-width="auto"
       >
         <div class="theme-schedule" flex="~ items-center gap-2">
-          <input v-model="themeScheduleStart" type="time" @blur="saveThemeSchedule">
+          <input v-model="themeScheduleStart" type="time" @blur="saveThemeSchedule" />
           <span>–</span>
-          <input v-model="themeScheduleEnd" type="time" @blur="saveThemeSchedule">
+          <input v-model="themeScheduleEnd" type="time" @blur="saveThemeSchedule" />
         </div>
       </SettingsItem>
-      <SettingsItem :title="$t('settings.video_page_dark_mode')" right-width="auto">
-        <template #desc>
-          {{ $t('settings.video_page_dark_mode_desc') }}
-        </template>
-
-        <Radio v-model="settings.videoPageDarkMode" />
+      <SettingsItem
+        :title="$t('settings.video_page_follow_global_theme')"
+        :desc="$t('settings.video_page_follow_global_theme_desc')"
+        right-width="auto"
+      >
+        <Radio v-model="settings.videoPageFollowGlobalTheme" />
+      </SettingsItem>
+      <SettingsItem
+        v-if="!settings.videoPageFollowGlobalTheme"
+        :title="$t('settings.video_page_theme')"
+        :desc="$t('settings.video_page_theme_desc')"
+        right-width="auto"
+      >
+        <div
+          class="bew-segment-control bew-segment-control--surface bew-segment-control--static"
+          role="radiogroup"
+          :aria-label="$t('settings.video_page_theme')"
+        >
+          <button
+            type="button"
+            class="bew-segment-control__item"
+            data-segment-item
+            :data-active="settings.videoPageTheme === 'light'"
+            role="radio"
+            :aria-checked="settings.videoPageTheme === 'light'"
+            @click="settings.videoPageTheme = 'light'"
+          >
+            <span class="bew-segment-control__icon i-mingcute:sun-line" aria-hidden="true" />
+            <span>{{ $t('settings.theme_opt.light') }}</span>
+          </button>
+          <button
+            type="button"
+            class="bew-segment-control__item"
+            data-segment-item
+            :data-active="settings.videoPageTheme === 'dark'"
+            role="radio"
+            :aria-checked="settings.videoPageTheme === 'dark'"
+            @click="settings.videoPageTheme = 'dark'"
+          >
+            <span class="bew-segment-control__icon i-mingcute:moon-stars-line" aria-hidden="true" />
+            <span>{{ $t('settings.theme_opt.dark') }}</span>
+          </button>
+        </div>
       </SettingsItem>
       <SettingsItem :title="$t('settings.theme_color')" right-width="auto">
         <div class="theme-color-options" flex="~ gap-2 wrap" justify-end>
           <div
-            v-for="color in themeColorOptions" :key="color"
+            v-for="color in themeColorOptions"
+            :key="color"
             class="color-option"
-            w-20px h-20px rounded-8 cursor-pointer transition
-            duration-300 box-border
+            w-20px
+            h-20px
+            rounded-8
+            cursor-pointer
+            transition
+            duration-300
+            box-border
             :style="{
               background: color,
               transform: color === settings.themeColor ? 'scale(1.3)' : 'scale(1)',
               border: color === settings.themeColor ? '2px solid white' : '2px solid transparent',
-              boxShadow: color === settings.themeColor ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)' : 'none',
+              boxShadow:
+                color === settings.themeColor
+                  ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)'
+                  : 'none',
             }"
             @click="changeThemeColor(color)"
           />
           <div
             class="color-option"
-            w-20px h-20px rounded-8 overflow-hidden
-            cursor-pointer transition duration-300
+            w-20px
+            h-20px
+            rounded-8
+            overflow-hidden
+            cursor-pointer
+            transition
+            duration-300
             flex="~ items-center justify-center"
             :style="{
               transform: isCustomColor ? 'scale(1.3)' : 'scale(1)',
               border: isCustomColor ? '2px solid white' : `2px solid ${settings.themeColor}`,
-              boxShadow: isCustomColor ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)' : 'none',
+              boxShadow: isCustomColor
+                ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)'
+                : 'none',
             }"
           >
             <div
-              i-mingcute:color-picker-line pos="absolute" text-white w-12px h-12px
+              i-mingcute:color-picker-line
+              pos="absolute"
+              text-white
+              w-12px
+              h-12px
               pointer-events-none
             />
             <input
               :value="settings.themeColor"
               type="color"
-              w-30px h-30px p-0 m-0 block
-              shrink-0 rounded-8 border-none cursor-pointer
+              w-30px
+              h-30px
+              p-0
+              m-0
+              block
+              shrink-0
+              rounded-8
+              border-none
+              cursor-pointer
               @input="(e) => changeThemeColorThrottle((e.target as HTMLInputElement)?.value)"
-            >
+            />
           </div>
         </div>
       </SettingsItem>
@@ -274,45 +341,79 @@ function changeWallpaper(url: string) {
       <SettingsItem :title="$t('settings.dark_mode_base_color')" right-width="auto">
         <div class="dark-mode-base-color-options" flex="~ gap-2 wrap" justify-end>
           <div
-            v-for="color in darkModeBaseColorOptions" :key="color"
+            v-for="color in darkModeBaseColorOptions"
+            :key="color"
             class="color-option"
-            w-20px h-20px rounded-8 cursor-pointer transition
-            duration-300 box-border
+            w-20px
+            h-20px
+            rounded-8
+            cursor-pointer
+            transition
+            duration-300
+            box-border
             :style="{
               background: color,
               transform: color === settings.darkModeBaseColor ? 'scale(1.3)' : 'scale(1)',
-              border: color === settings.darkModeBaseColor ? '2px solid white' : '2px solid transparent',
-              boxShadow: color === settings.darkModeBaseColor ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)' : 'none',
+              border:
+                color === settings.darkModeBaseColor ? '2px solid white' : '2px solid transparent',
+              boxShadow:
+                color === settings.darkModeBaseColor
+                  ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)'
+                  : 'none',
             }"
             @click="changeDarkModeBaseColor(color)"
           />
           <div
             class="color-option"
-            w-20px h-20px rounded-8 overflow-hidden
-            cursor-pointer transition duration-300
+            w-20px
+            h-20px
+            rounded-8
+            overflow-hidden
+            cursor-pointer
+            transition
+            duration-300
             flex="~ items-center justify-center"
             :style="{
               transform: isCustomDarkModeBaseColor ? 'scale(1.3)' : 'scale(1)',
-              border: isCustomDarkModeBaseColor ? '2px solid white' : `2px solid ${settings.darkModeBaseColor}`,
-              boxShadow: isCustomDarkModeBaseColor ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)' : 'none',
+              border: isCustomDarkModeBaseColor
+                ? '2px solid white'
+                : `2px solid ${settings.darkModeBaseColor}`,
+              boxShadow: isCustomDarkModeBaseColor
+                ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)'
+                : 'none',
             }"
           >
             <div
-              i-mingcute:color-picker-line pos="absolute" text-white w-12px h-12px
+              i-mingcute:color-picker-line
+              pos="absolute"
+              text-white
+              w-12px
+              h-12px
               pointer-events-none
             />
             <input
               :value="settings.darkModeBaseColor"
               type="color"
-              w-30px h-30px p-0 m-0 block
-              shrink-0 rounded-8 border-none cursor-pointer
+              w-30px
+              h-30px
+              p-0
+              m-0
+              block
+              shrink-0
+              rounded-8
+              border-none
+              cursor-pointer
               @input="(e) => changeDarkModeBaseColorThrottle((e.target as HTMLInputElement)?.value)"
-            >
+            />
           </div>
         </div>
       </SettingsItem>
 
-      <SettingsItem v-if="showGlobalBackgroundSettings" :title="$t('settings.gradient_theme_color_background')" right-width="auto">
+      <SettingsItem
+        v-if="showGlobalBackgroundSettings"
+        :title="$t('settings.gradient_theme_color_background')"
+        right-width="auto"
+      >
         <Radio v-model="settings.useLinearGradientThemeColorBackground" />
       </SettingsItem>
       <SettingsItem
@@ -322,13 +423,25 @@ function changeWallpaper(url: string) {
       >
         <div
           class="color-option"
-          w-20px h-20px rounded-8 cursor-pointer transition
-          duration-300 box-border
+          w-20px
+          h-20px
+          rounded-8
+          cursor-pointer
+          transition
+          duration-300
+          box-border
           :style="{
             background: bilibiliEvolvedThemeColor,
-            transform: bilibiliEvolvedThemeColor === settings.themeColor ? 'scale(1.3)' : 'scale(1)',
-            border: bilibiliEvolvedThemeColor === settings.themeColor ? '2px solid white' : '2px solid transparent',
-            boxShadow: bilibiliEvolvedThemeColor === settings.themeColor ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)' : 'none',
+            transform:
+              bilibiliEvolvedThemeColor === settings.themeColor ? 'scale(1.3)' : 'scale(1)',
+            border:
+              bilibiliEvolvedThemeColor === settings.themeColor
+                ? '2px solid white'
+                : '2px solid transparent',
+            boxShadow:
+              bilibiliEvolvedThemeColor === settings.themeColor
+                ? '0 0 0 1px var(--bew-border-color), var(--bew-shadow-1)'
+                : 'none',
           }"
           @click="changeThemeColor(bilibiliEvolvedThemeColor)"
         />
@@ -338,11 +451,11 @@ function changeWallpaper(url: string) {
     <SettingsItemGroup :title="$t('settings.group_page_style')">
       <SettingsItem
         v-if="!settings.useOriginalBilibiliHomepage"
-        :title="$t('settings.disable_background')"
-        :desc="$t('settings.disable_background_desc')"
+        :title="$t('settings.enable_background')"
+        :desc="$t('settings.enable_background_desc')"
         right-width="auto"
       >
-        <Radio v-model="settings.disableBackground" />
+        <Radio v-model="settings.enableBackground" />
       </SettingsItem>
       <SettingsItem
         :title="$t('settings.video_page_glass_style')"
@@ -354,6 +467,14 @@ function changeWallpaper(url: string) {
           <span block class="bew-warning-text">{{ $t('common.performance_impact_warn') }}</span>
         </template>
         <Radio v-model="settings.videoPageGlassStyle" />
+      </SettingsItem>
+      <SettingsItem
+        v-if="settings.videoPageGlassStyle"
+        :title="$t('settings.video_page_glass_style_overlay')"
+        :desc="$t('settings.video_page_glass_style_overlay_desc')"
+        right-width="auto"
+      >
+        <Radio v-model="settings.videoPageGlassStyleOverlay" />
       </SettingsItem>
       <SettingsItem
         :title="$t('settings.rounded_video_player')"
@@ -368,23 +489,31 @@ function changeWallpaper(url: string) {
 
     <SettingsItemGroup :title="$t('settings.group_fonts')">
       <SettingsItem :title="$t('settings.customize_font')" right-width="auto">
-        <Select
-          v-model="settings.customizeFont"
-          :options="fontPreferenceOptions"
-          w="160px"
-        />
+        <Select v-model="settings.customizeFont" :options="fontPreferenceOptions" w="160px" />
         <template v-if="settings.customizeFont === 'custom'" #bottom>
           <Input v-model="settings.fontFamily" @keydown.stop.passive="() => {}" />
           <div text="sm $bew-text-2" mt-1 v-html="t('settings.customize_font_desc')" />
         </template>
       </SettingsItem>
-      <SettingsItem :title="$t('settings.remove_the_indent_from_chinese_punctuation')" :desc="$t('settings.remove_the_indent_from_chinese_punctuation_desc')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.remove_the_indent_from_chinese_punctuation')"
+        :desc="$t('settings.remove_the_indent_from_chinese_punctuation_desc')"
+        right-width="auto"
+      >
         <Radio v-model="settings.removeTheIndentFromChinesePunctuation" />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.cjk_latin_autospace')" :desc="$t('settings.cjk_latin_autospace_desc')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.cjk_latin_autospace')"
+        :desc="$t('settings.cjk_latin_autospace_desc')"
+        right-width="auto"
+      >
         <Radio v-model="settings.enableCjkLatinAutospace" />
       </SettingsItem>
-      <SettingsItem :title="$t('settings.override_danmaku_font')" :desc="$t('settings.override_danmaku_font_desc')" right-width="auto">
+      <SettingsItem
+        :title="$t('settings.override_danmaku_font')"
+        :desc="$t('settings.override_danmaku_font_desc')"
+        right-width="auto"
+      >
         <Radio v-model="settings.overrideDanmakuFont" />
       </SettingsItem>
     </SettingsItemGroup>
@@ -402,7 +531,11 @@ function changeWallpaper(url: string) {
           </span>
         </template>
         <template v-if="localSettings.customizeCSS" #bottom>
-          <CodeEditor v-model="localSettings.customizeCSSContent" language="css" @keydown.stop.passive="() => {}" />
+          <CodeEditor
+            v-model="localSettings.customizeCSSContent"
+            language="css"
+            @keydown.stop.passive="() => {}"
+          />
         </template>
       </SettingsItem>
     </SettingsItemGroup>

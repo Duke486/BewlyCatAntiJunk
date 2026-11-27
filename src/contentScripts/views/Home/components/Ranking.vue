@@ -13,6 +13,7 @@ import type { List as RankingVideoItem, RankingResult } from '~/models/video/ran
 import type { List as RankingPgcItem, RankingPgcResult } from '~/models/video/rankingPgc'
 import api from '~/utils/api'
 import type { ApiErrorReportSource } from '~/utils/apiDiagnostics'
+import { hasMissingHostPermissionFailure } from '~/utils/apiDiagnostics'
 import { getListGridColumnCount } from '~/utils/gridLayout'
 import { decodeHtmlEntities } from '~/utils/htmlDecode'
 
@@ -43,43 +44,58 @@ const rankingTypes = computed((): RankingType[] => {
     { id: 2, name: t('topbar.logo_dropdown.anime'), seasonType: 1 },
     { id: 3, name: t('topbar.logo_dropdown.chinese_anime'), seasonType: 4 },
     { id: 5, name: t('topbar.logo_dropdown.documentary_films'), seasonType: 3 },
-    { id: 6, name: t('topbar.logo_dropdown.animations'), rid: 1005 },
-    { id: 7, name: t('topbar.logo_dropdown.music'), rid: 1003 },
-    { id: 8, name: t('topbar.logo_dropdown.dance'), rid: 1004 },
-    { id: 9, name: t('topbar.logo_dropdown.gaming'), rid: 1008 },
-    { id: 10, name: t('topbar.logo_dropdown.knowledge'), rid: 1010 },
-    { id: 11, name: t('topbar.logo_dropdown.technology'), rid: 1012 },
-    { id: 12, name: t('topbar.logo_dropdown.sports'), rid: 1018 },
-    { id: 13, name: t('topbar.logo_dropdown.cars'), rid: 1013 },
-    { id: 15, name: t('topbar.logo_dropdown.foods'), rid: 1020 },
-    { id: 16, name: t('topbar.logo_dropdown.animals'), rid: 1024 },
-    { id: 17, name: t('topbar.logo_dropdown.kichiku'), rid: 1007 },
-    { id: 18, name: t('topbar.logo_dropdown.fashion'), rid: 1014 },
-    { id: 19, name: t('topbar.logo_dropdown.showbiz'), rid: 1002 },
-    { id: 20, name: t('topbar.logo_dropdown.cinephile'), rid: 1001 },
     { id: 21, name: t('topbar.logo_dropdown.movies'), seasonType: 2 },
     { id: 22, name: t('topbar.logo_dropdown.tv_shows'), seasonType: 5 },
     { id: 23, name: t('topbar.logo_dropdown.variety_shows'), seasonType: 7 },
-    { id: 24, name: t('ranking.original_content'), rid: 0, type: 'origin' },
-    { id: 25, name: t('ranking.debut_work'), rid: 0, type: 'rookie' },
+    { id: 6, name: t('topbar.logo_dropdown.animations'), rid: 1005 },
+    { id: 9, name: t('topbar.logo_dropdown.gaming'), rid: 1008 },
+    { id: 17, name: t('topbar.logo_dropdown.kichiku'), rid: 1007 },
+    { id: 7, name: t('topbar.logo_dropdown.music'), rid: 1003 },
+    { id: 8, name: t('topbar.logo_dropdown.dance'), rid: 1004 },
+    { id: 20, name: t('topbar.logo_dropdown.cinephile'), rid: 1001 },
+    { id: 19, name: t('topbar.logo_dropdown.showbiz'), rid: 1002 },
+    { id: 10, name: t('topbar.logo_dropdown.knowledge'), rid: 1010 },
+    { id: 11, name: t('topbar.logo_dropdown.technology'), rid: 1012 },
+    { id: 15, name: t('topbar.logo_dropdown.foods'), rid: 1020 },
+    { id: 13, name: t('topbar.logo_dropdown.cars'), rid: 1013 },
+    { id: 18, name: t('topbar.logo_dropdown.fashion'), rid: 1014 },
+    { id: 12, name: t('topbar.logo_dropdown.sports'), rid: 1018 },
+    { id: 16, name: t('topbar.logo_dropdown.animals'), rid: 1024 },
   ]
 })
 
 const tabState = useHomeTabState({ retainedFields: ['activatedRankingTypeId'] })
 const isLoading = ref<boolean>(false)
-const activatedRankingTypeId = tabState.ref<number>('activatedRankingTypeId', rankingTypes.value[0].id)
+const activatedRankingTypeId = tabState.ref<number>(
+  'activatedRankingTypeId',
+  rankingTypes.value[0].id,
+)
 const activatedRankingType = computed<RankingType>({
-  get: () => rankingTypes.value.find(type => type.id === activatedRankingTypeId.value) || rankingTypes.value[0],
+  get: () =>
+    rankingTypes.value.find((type) => type.id === activatedRankingTypeId.value) ||
+    rankingTypes.value[0],
   set: (type) => {
     activatedRankingTypeId.value = type.id
   },
 })
 const videoList = tabState.ref<RankingVideoElement[]>('videoList', [])
 const PgcList = tabState.ref<RankingPgcItem[]>('pgcList', [])
-const shouldMoveAsideUp = ref<boolean>(false)
+// Allow moving sidebar up only when the Bewly top bar is enabled and auto-hidden (on scroll or on hover).
+// When the Bewly top bar is disabled (e.g. for Bilibili Evolved) or using the original top bar, keep it below the top bar.
+const shouldMoveAsideUp = computed(
+  () =>
+    settings.value.enableTopBarModule &&
+    settings.value.enableTopBar &&
+    !settings.value.useOriginalBilibiliTopBar &&
+    settings.value.otherPageTopBarConfig !== VideoPageTopBarConfig.AlwaysShow &&
+    !props.topBarVisibility,
+)
 const noMoreContent = tabState.ref<boolean>('noMoreContent', true) // 排行榜没有分页
 const requestFailed = tabState.ref<boolean>('requestFailed', false)
-const errorReportSource: ApiErrorReportSource = { scene: '排行', queries: ['getRankingVideos', 'getRankingPgc'] }
+const errorReportSource: ApiErrorReportSource = {
+  scene: '排行',
+  queries: ['getRankingVideos', 'getRankingPgc'],
+}
 const hasLoaded = tabState.ref<boolean>('hasLoaded', false)
 const rankingGridRef = ref<HTMLElement | null>(null)
 const rankingGridWidth = ref(0)
@@ -87,15 +103,21 @@ let rankingGridResizeObserver: ResizeObserver | null = null
 let requestVersion = 0
 
 const isRankingAutoSwitchSingleColumn = computed(() => {
-  if (props.gridLayout !== 'twoColumns' || !settings.value.autoSwitchListLayout || !rankingGridWidth.value)
+  if (
+    props.gridLayout !== 'twoColumns' ||
+    !settings.value.autoSwitchListLayout ||
+    !rankingGridWidth.value
+  )
     return false
 
-  return getListGridColumnCount(
-    props.gridLayout,
-    rankingGridWidth.value,
-    true,
-    settings.value.autoSwitchListLayoutBreakpoint,
-  ) === 1
+  return (
+    getListGridColumnCount(
+      props.gridLayout,
+      rankingGridWidth.value,
+      true,
+      settings.value.autoSwitchListLayoutBreakpoint,
+    ) === 1
+  )
 })
 
 function updateRankingGridWidth() {
@@ -112,13 +134,11 @@ function setupRankingGridResizeObserver() {
   updateRankingGridWidth()
 
   const element = rankingGridRef.value
-  if (!element || typeof ResizeObserver === 'undefined')
-    return
+  if (!element || typeof ResizeObserver === 'undefined') return
 
   rankingGridResizeObserver = new ResizeObserver((entries) => {
     const width = entries[0]?.contentRect.width
-    if (width && Math.abs(width - rankingGridWidth.value) > 0.5)
-      rankingGridWidth.value = width
+    if (width && Math.abs(width - rankingGridWidth.value) > 0.5) rankingGridWidth.value = width
   })
   rankingGridResizeObserver.observe(element)
 }
@@ -149,39 +169,24 @@ function transformRankingVideo(item: RankingVideoItem, rank: number): Video {
   }
 }
 
-watch(() => activatedRankingType.value.id, () => {
-  if (!tabState.isCurrent())
-    return
+watch(
+  () => activatedRankingType.value.id,
+  () => {
+    if (!tabState.isCurrent()) return
 
-  handleScrollJump(getHomeContentScrollTop())
+    handleScrollJump(getHomeContentScrollTop())
 
-  initData()
-})
-
-watch(() => props.topBarVisibility, () => {
-  shouldMoveAsideUp.value = false
-
-  // Allow moving tabs up only when the top bar is not hidden & is set to auto-hide (on scroll or on hover)
-  // This feature is primarily designed to compatible with the Bilibili Evolved's top bar
-  // Even when the BewlyBewly top bar is hidden, the Bilibili Evolved top bar still exists, so not moving up
-  if (settings.value.otherPageTopBarConfig !== VideoPageTopBarConfig.AlwaysShow && settings.value.enableTopBar) {
-    if (props.topBarVisibility)
-      shouldMoveAsideUp.value = false
-
-    else
-      shouldMoveAsideUp.value = true
-  }
-})
+    initData()
+  },
+)
 
 onMounted(() => {
   initPageAction()
   window.addEventListener('resize', updateRankingGridWidth, { passive: true })
   nextTick(setupRankingGridResizeObserver)
 
-  if (!tabState.restored)
-    initData()
-  else if (!hasLoaded.value)
-    initData()
+  if (!tabState.restored) initData()
+  else if (!hasLoaded.value) initData()
 })
 
 watch(rankingGridRef, setupRankingGridResizeObserver, { flush: 'post' })
@@ -190,8 +195,7 @@ onBeforeUnmount(() => {
   requestVersion++
   cleanupRankingGridResizeObserver()
   window.removeEventListener('resize', updateRankingGridWidth)
-  if (handlePageRefresh.value === refreshHandler)
-    handlePageRefresh.value = undefined
+  if (handlePageRefresh.value === refreshHandler) handlePageRefresh.value = undefined
 })
 
 function initPageAction() {
@@ -200,15 +204,13 @@ function initPageAction() {
 }
 
 async function refreshHandler() {
-  if (!tabState.isCurrent() || isLoading.value)
-    return
+  if (!tabState.isCurrent() || isLoading.value) return
 
   initData()
 }
 
 function initData() {
-  if (!tabState.isCurrent())
-    return
+  if (!tabState.isCurrent()) return
 
   const version = ++requestVersion
   const selectionId = activatedRankingType.value.id
@@ -222,41 +224,38 @@ function initData() {
 }
 
 function isRequestCurrent(version: number, selectionId: number) {
-  return tabState.isCurrent()
-    && version === requestVersion
-    && activatedRankingType.value.id === selectionId
+  return (
+    tabState.isCurrent() &&
+    version === requestVersion &&
+    activatedRankingType.value.id === selectionId
+  )
 }
 
 function getData(version: number, selectionId: number) {
-  if (!isRequestCurrent(version, selectionId))
-    return
+  if (!isRequestCurrent(version, selectionId)) return
 
-  const rankingType = rankingTypes.value.find(type => type.id === selectionId)
-  if (!rankingType)
-    return
+  const rankingType = rankingTypes.value.find((type) => type.id === selectionId)
+  if (!rankingType) return
 
   if (rankingType.seasonType !== undefined)
     void getRankingPgc(version, selectionId, rankingType.seasonType)
-  else
-    void getRankingVideos(version, selectionId, rankingType.rid ?? 0, rankingType.type ?? 'all')
+  else void getRankingVideos(version, selectionId, rankingType.rid ?? 0)
 }
 
 function finishRequest(version: number, selectionId: number) {
-  if (!isRequestCurrent(version, selectionId))
-    return
+  if (!isRequestCurrent(version, selectionId)) return
 
   isLoading.value = false
   emit('afterLoading')
 }
 
-async function getRankingVideos(version: number, selectionId: number, rid: number, type: RankingType['type'] = 'all') {
+async function getRankingVideos(version: number, selectionId: number, rid: number) {
   try {
     const response: RankingResult = await api.ranking.getRankingVideos({
       rid,
-      type,
+      type: 'all',
     })
-    if (!isRequestCurrent(version, selectionId))
-      return
+    if (!isRequestCurrent(version, selectionId)) return
     if (response.code !== 0) {
       requestFailed.value = true
       return
@@ -268,14 +267,12 @@ async function getRankingVideos(version: number, selectionId: number, rid: numbe
     }))
     videoList.value = processedList
     hasLoaded.value = true
-  }
-  catch (error) {
+  } catch (error) {
     if (isRequestCurrent(version, selectionId)) {
       requestFailed.value = true
       console.error('[Ranking] Failed to load video ranking:', error)
     }
-  }
-  finally {
+  } finally {
     finishRequest(version, selectionId)
   }
 }
@@ -285,8 +282,7 @@ async function getRankingPgc(version: number, selectionId: number, seasonType: n
     const response: RankingPgcResult = await api.ranking.getRankingPgc({
       season_type: seasonType,
     })
-    if (!isRequestCurrent(version, selectionId))
-      return
+    if (!isRequestCurrent(version, selectionId)) return
     if (response.code !== 0) {
       requestFailed.value = true
       return
@@ -294,14 +290,12 @@ async function getRankingPgc(version: number, selectionId: number, seasonType: n
 
     PgcList.value = response.data.list
     hasLoaded.value = true
-  }
-  catch (error) {
+  } catch (error) {
     if (isRequestCurrent(version, selectionId)) {
       requestFailed.value = true
       console.error('[Ranking] Failed to load PGC ranking:', error)
     }
-  }
-  finally {
+  } finally {
     finishRequest(version, selectionId)
   }
 }
@@ -321,7 +315,11 @@ function getItemKey(item: RankingVideoElement) {
   <div flex="~ gap-40px">
     <aside
       class="ranking-sidebar"
-      pos="sticky top-150px" h="[calc(100vh-140px)]" w-200px shrink-0 duration-300
+      pos="sticky top-150px"
+      h="[calc(100vh-140px)]"
+      w-200px
+      shrink-0
+      duration-300
       ease-in-out
       :class="{ hide: shouldMoveAsideUp }"
     >
@@ -393,12 +391,23 @@ function getItemKey(item: RankingVideoElement) {
           <!-- skeleton -->
           <template v-if="isLoading">
             <BangumiCardSkeleton
-              v-for="item in 30" :key="item"
+              v-for="item in 30"
+              :key="item"
               :horizontal="gridLayout !== 'adaptive'"
             />
           </template>
         </div>
-        <Empty v-if="requestFailed && !isLoading && PgcList.length === 0" mt-6 :description="$t('common.api_error.request_failed')">
+        <Empty
+          v-if="requestFailed && !isLoading && PgcList.length === 0"
+          mt-6
+          :description="
+            $t(
+              hasMissingHostPermissionFailure(errorReportSource.queries)
+                ? 'common.api_error.host_permission_denied'
+                : 'common.api_error.request_failed',
+            )
+          "
+        >
           <div flex="~ wrap justify-center gap-2">
             <Button type="primary" @click="initData">
               {{ $t('common.operation.refresh') }}
@@ -425,12 +434,12 @@ function getItemKey(item: RankingVideoElement) {
 }
 
 .hide {
-  --uno: "h-[calc(100vh-70px)] translate-y--70px";
+  --uno: 'h-[calc(100vh-70px)] translate-y--70px';
 }
 
 /* Bangumi Grid 布局 */
 .grid-adaptive-bangumi {
-  --uno: "grid gap-5";
+  --uno: 'grid gap-5';
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 }
 

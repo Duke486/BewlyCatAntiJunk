@@ -11,6 +11,8 @@ const LOCAL_WALLPAPERS_STORAGE_KEY = 'localWallpapers'
 
 /** 备份文件中存放本地上传壁纸的字段，与设置项并列；旧版本导入时会按未知设置忽略。 */
 export const LOCAL_WALLPAPER_BACKUP_KEY = 'localWallpaperBackup'
+/** 备份文件中存放深色模式本地上传壁纸的字段。 */
+export const LOCAL_DARK_WALLPAPER_BACKUP_KEY = 'localDarkWallpaperBackup'
 
 const WALLPAPER_DATA_URL_PATTERN = /^data:image\/[\w.+-]+;base64,[A-Z0-9+/]+=*$/i
 
@@ -43,14 +45,18 @@ export const localWallpapersLoaded = new Promise<boolean>((resolve) => {
 })
 
 // 本地壁纸存储
-const localWallpapers = useStorageLocal<Record<string, LocalWallpaperData>>(LOCAL_WALLPAPERS_STORAGE_KEY, {}, {
-  onError: (error) => {
-    // 读取或补写默认值失败时数据不可信，宁可跳过清理也不误删引用。
-    localWallpapersReadFailed = true
-    console.error(error)
+const localWallpapers = useStorageLocal<Record<string, LocalWallpaperData>>(
+  LOCAL_WALLPAPERS_STORAGE_KEY,
+  {},
+  {
+    onError: (error) => {
+      // 读取或补写默认值失败时数据不可信，宁可跳过清理也不误删引用。
+      localWallpapersReadFailed = true
+      console.error(error)
+    },
+    onReady: () => resolveLocalWallpapersLoaded(!localWallpapersReadFailed),
   },
-  onReady: () => resolveLocalWallpapersLoaded(!localWallpapersReadFailed),
-})
+)
 
 /**
  * 生成本地壁纸的唯一标识符
@@ -122,19 +128,20 @@ export function getLocalWallpaperData(id: string): LocalWallpaperData | null {
 }
 
 function isLocalWallpaperData(value: unknown): value is LocalWallpaperData {
-  if (typeof value !== 'object' || value === null)
-    return false
+  if (typeof value !== 'object' || value === null) return false
 
   const data = value as Partial<LocalWallpaperData>
-  return typeof data.id === 'string'
-    && data.id.startsWith('wallpaper_')
-    && typeof data.name === 'string'
-    && typeof data.base64 === 'string'
-    && WALLPAPER_DATA_URL_PATTERN.test(data.base64)
-    && typeof data.type === 'string'
-    && Number.isFinite(data.size)
-    && Number.isFinite(data.lastModified)
-    && Number.isFinite(data.timestamp)
+  return (
+    typeof data.id === 'string' &&
+    data.id.startsWith('wallpaper_') &&
+    typeof data.name === 'string' &&
+    typeof data.base64 === 'string' &&
+    WALLPAPER_DATA_URL_PATTERN.test(data.base64) &&
+    typeof data.type === 'string' &&
+    Number.isFinite(data.size) &&
+    Number.isFinite(data.lastModified) &&
+    Number.isFinite(data.timestamp)
+  )
 }
 
 /**
@@ -144,12 +151,10 @@ function isLocalWallpaperData(value: unknown): value is LocalWallpaperData {
  * @returns 壁纸数据或null
  */
 export function convertLegacyUploadedWallpaper(value: unknown): LocalWallpaperData | null {
-  if (typeof value !== 'object' || value === null)
-    return null
+  if (typeof value !== 'object' || value === null) return null
 
-  const { name, url } = value as { name?: unknown, url?: unknown }
-  if (typeof url !== 'string' || !WALLPAPER_DATA_URL_PATTERN.test(url))
-    return null
+  const { name, url } = value as { name?: unknown; url?: unknown }
+  if (typeof url !== 'string' || !WALLPAPER_DATA_URL_PATTERN.test(url)) return null
 
   const fileName = typeof name === 'string' && name ? name : 'wallpaper'
   const timestamp = Date.now()
@@ -157,7 +162,7 @@ export function convertLegacyUploadedWallpaper(value: unknown): LocalWallpaperDa
     id: generateWallpaperId(fileName),
     name: fileName,
     base64: url,
-    size: Math.floor((url.length - url.indexOf(',') - 1) * 3 / 4),
+    size: Math.floor(((url.length - url.indexOf(',') - 1) * 3) / 4),
     type: url.slice('data:'.length, url.indexOf(';')),
     lastModified: timestamp,
     timestamp,
@@ -165,28 +170,30 @@ export function convertLegacyUploadedWallpaper(value: unknown): LocalWallpaperDa
 }
 
 /**
- * 从备份恢复本地壁纸。上传入口只保留一张本地壁纸，这里同样整体替换以释放旧图占用的配额。
- * 备份内容无效、现有数据未读取成功或存储写入失败时抛出错误，且不改动现有壁纸。
- * @param value 备份中的壁纸数据
- * @returns 壁纸引用对象
+ * 从备份恢复本地壁纸（支持同时恢复浅色/默认与深色本地壁纸）。
+ * 与上传入口一致，这里整体替换本地壁纸存储以释放旧图占用的配额。
+ * 任意备份项无效、现有数据未读取成功或存储写入失败时抛出错误，且不改动现有壁纸。
+ * @param values 备份中的壁纸数据列表
+ * @returns 壁纸引用对象列表（顺序与输入一一对应）
  */
-export async function restoreLocalWallpaper(value: unknown): Promise<LocalWallpaperRef> {
-  if (!isLocalWallpaperData(value))
+export async function restoreLocalWallpapers(values: unknown[]): Promise<LocalWallpaperRef[]> {
+  if (values.length === 0 || !values.every(isLocalWallpaperData))
     throw new TypeError('Invalid local wallpaper backup')
-  if (!await localWallpapersLoaded)
-    throw new Error('Local wallpapers are unavailable')
+  if (!(await localWallpapersLoaded)) throw new Error('Local wallpapers are unavailable')
 
-  const wallpapers = { [value.id]: value }
+  const wallpapers: Record<string, LocalWallpaperData> = {}
+  for (const value of values) wallpapers[value.id] = value
+
   // 响应式写入不会返回结果，先直接写入存储，让配额不足等错误回到导入流程。
   await browser.storage.local.set({ [LOCAL_WALLPAPERS_STORAGE_KEY]: JSON.stringify(wallpapers) })
   // 存储事件的到达时机不确定，同步更新当前页面，确保随后导入的设置能解析到新壁纸。
   localWallpapers.value = wallpapers
 
-  return {
+  return values.map((value) => ({
     id: value.id,
     name: value.name,
     isLocal: true,
-  }
+  }))
 }
 
 /**
@@ -234,8 +241,7 @@ export function clearAllLocalWallpapers(): void {
  * @returns 实际的显示URL
  */
 export function resolveWallpaperUrl(url: string): string | null {
-  if (!url)
-    return null
+  if (!url) return null
 
   // 如果是本地壁纸引用格式
   if (url.startsWith('local-wallpaper:')) {

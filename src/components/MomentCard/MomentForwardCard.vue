@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import MomentImageSet from './MomentImageSet.vue'
 import MomentRichText from './MomentRichText.vue'
 import type { DisplayMoment } from './types'
-import { getAuthorSpaceUrl } from './utils'
+import { getMomentAuthorUrl } from './utils'
 
 // 转发引用卡：原作者、原文摘要与原动态配图。点击整块或“查看原动态”由调用方决定打开方式。
 const {
@@ -40,7 +40,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const href = computed(() => forward.url || fallbackHref)
-const authorSpaceUrl = computed(() => getAuthorSpaceUrl(forward.authorMid))
+const authorUrl = computed(() =>
+  getMomentAuthorUrl({ mid: forward.authorMid, url: forward.authorUrl }),
+)
 </script>
 
 <template>
@@ -66,13 +68,14 @@ const authorSpaceUrl = computed(() => getAuthorSpaceUrl(forward.authorMid))
     />
     <div class="moment-card__forward-copy">
       <a
-        v-if="authorSpaceUrl"
+        v-if="authorUrl"
         draggable="false"
-        :href="authorSpaceUrl"
+        :href="authorUrl"
         class="moment-card__forward-author"
         rel="noopener noreferrer"
         @click="emit('authorClick', $event)"
-      >@{{ forward.author }}</a>
+        >@{{ forward.author }}</a
+      >
       <strong v-else>
         <a
           :href="href"
@@ -80,7 +83,8 @@ const authorSpaceUrl = computed(() => getAuthorSpaceUrl(forward.authorMid))
           draggable="false"
           tabindex="-1"
           @click="emit('textClick', $event)"
-        >@{{ forward.author }}</a>
+          >@{{ forward.author }}</a
+        >
       </strong>
       <p>
         <MomentRichText
@@ -88,7 +92,7 @@ const authorSpaceUrl = computed(() => getAuthorSpaceUrl(forward.authorMid))
           :segments="forward.richText"
           :href="href"
           @link-click="(event, url) => emit('linkClick', event, url)"
-          @text-click="event => emit('textClick', event)"
+          @text-click="(event) => emit('textClick', event)"
         />
         <a
           v-else
@@ -128,7 +132,7 @@ const authorSpaceUrl = computed(() => getAuthorSpaceUrl(forward.authorMid))
 </template>
 
 <style lang="scss" scoped>
-@use "./styles/mixins";
+@use './styles/mixins';
 
 .moment-card__forward {
   @include mixins.interactive-layer;

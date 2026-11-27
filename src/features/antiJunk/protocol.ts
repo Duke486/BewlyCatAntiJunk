@@ -9,7 +9,7 @@ export const ANTI_JUNK_BATCH_SIZE = 50
 export const ANTI_JUNK_TEXT_LIMIT = 12000
 
 export interface AntiJunkConfig {
-  feedback?: { revision: string, identities: string[] }
+  feedback?: { revision: string; identities: string[] }
   enabled: boolean
   inspect: boolean
   metadata: boolean
@@ -21,7 +21,7 @@ export interface AntiJunkConfig {
 }
 
 export interface AntiJunkState {
-  feedback?: { revision: string, identities: string[] }
+  feedback?: { revision: string; identities: string[] }
   enabled: boolean
   inspect: boolean
   metadata: boolean
@@ -66,19 +66,36 @@ export interface AntiJunkVideo {
 }
 
 export function normalizeAntiJunkVideo(value: unknown): AntiJunkVideo | undefined {
-  if (!value || typeof value !== 'object')
-    return undefined
+  if (!value || typeof value !== 'object') return undefined
   const item = value as Record<string, unknown>
-  for (const [key, limit] of Object.entries({ id: 40, title: 300, author: 100, description: 4000 })) {
-    if (typeof item[key] !== 'string' || (item[key] as string).length > limit)
-      return undefined
+  for (const [key, limit] of Object.entries({
+    id: 40,
+    title: 300,
+    author: 100,
+    description: 4000,
+  })) {
+    if (typeof item[key] !== 'string' || (item[key] as string).length > limit) return undefined
   }
-  if (!/^(?:BV[0-9a-z]{10}|av\d+)$/i.test(item.id as string)
-    || typeof item.durationSeconds !== 'number' || !Number.isFinite(item.durationSeconds) || item.durationSeconds < 0
-    || typeof item.publishedAt !== 'number' || !Number.isSafeInteger(item.publishedAt) || item.publishedAt < 0 || item.publishedAt > 8640000000000) {
+  if (
+    !/^(?:BV[0-9a-z]{10}|av\d+)$/i.test(item.id as string) ||
+    typeof item.durationSeconds !== 'number' ||
+    !Number.isFinite(item.durationSeconds) ||
+    item.durationSeconds < 0 ||
+    typeof item.publishedAt !== 'number' ||
+    !Number.isSafeInteger(item.publishedAt) ||
+    item.publishedAt < 0 ||
+    item.publishedAt > 8640000000000
+  ) {
     return undefined
   }
-  return { id: item.id as string, title: item.title as string, durationSeconds: item.durationSeconds, author: item.author as string, description: item.description as string, publishedAt: item.publishedAt }
+  return {
+    id: item.id as string,
+    title: item.title as string,
+    durationSeconds: item.durationSeconds,
+    author: item.author as string,
+    description: item.description as string,
+    publishedAt: item.publishedAt,
+  }
 }
 
 export interface AntiJunkRecord extends AntiJunkComment {
@@ -102,11 +119,18 @@ export interface AntiJunkResult {
   checked: string[]
   blocked: string[]
   error?: string
-  details?: Record<string, { rule: string, round: number }>
+  details?: Record<string, { rule: string; round: number }>
 }
 
 export type AntiJunkStatus = 'queued' | 'pending' | 'reviewing' | 'approved' | 'rejected' | 'error'
-export const ANTI_JUNK_STATUS_ICONS: Record<AntiJunkStatus, string> = { queued: '⚪️', pending: '🟡', reviewing: '🟠', approved: '🟢', rejected: '🔴', error: '⚫️' }
+export const ANTI_JUNK_STATUS_ICONS: Record<AntiJunkStatus, string> = {
+  queued: '⚪️',
+  pending: '🟡',
+  reviewing: '🟠',
+  approved: '🟢',
+  rejected: '🔴',
+  error: '⚫️',
+}
 
 export interface AntiJunkExample {
   key: string
@@ -123,15 +147,31 @@ export interface AntiJunkLibrary {
 
 export function parseAntiJunkLibrary(value: unknown): AntiJunkLibrary {
   const item = value as (AntiJunkLibrary & { groups?: string[][] }) | null
-  if (!item || !Array.isArray(item.examples) || item.examples.length > 50 || (item.groups !== undefined && (!Array.isArray(item.groups) || item.groups.length > 50))
-    || (item.summary !== undefined && (typeof item.summary !== 'string' || item.summary.length > 6000)) || typeof item.revision !== 'string' || item.revision.length > 100) {
+  if (
+    !item ||
+    !Array.isArray(item.examples) ||
+    item.examples.length > 50 ||
+    (item.groups !== undefined && (!Array.isArray(item.groups) || item.groups.length > 50)) ||
+    (item.summary !== undefined &&
+      (typeof item.summary !== 'string' || item.summary.length > 6000)) ||
+    typeof item.revision !== 'string' ||
+    item.revision.length > 100
+  ) {
     throw new Error('invalid-library')
   }
   const keys = new Set<string>()
   const examples = item.examples.map((example) => {
     const comment = normalizeAntiJunkComment(example?.comment)
-    if (!comment || typeof example.key !== 'string' || !example.key || example.key.length > 100 || keys.has(example.key)
-      || !Number.isFinite(example.time) || example.time < 0 || example.time > 8.64e15) {
+    if (
+      !comment ||
+      typeof example.key !== 'string' ||
+      !example.key ||
+      example.key.length > 100 ||
+      keys.has(example.key) ||
+      !Number.isFinite(example.time) ||
+      example.time < 0 ||
+      example.time > 8.64e15
+    ) {
       throw new Error('invalid-library')
     }
     keys.add(example.key)
@@ -152,40 +192,66 @@ export function parseAntiJunkLibrary(value: unknown): AntiJunkLibrary {
       return key
     })
   })
-  if (groups.length && grouped.size !== examples.length)
-    throw new Error('invalid-library')
+  if (groups.length && grouped.size !== examples.length) throw new Error('invalid-library')
   return { examples, summary: item.summary?.trim() ?? '', revision: item.revision }
 }
 
 export function normalizeAntiJunkComment(value: unknown): AntiJunkComment | null {
-  if (!value || typeof value !== 'object')
-    return null
+  if (!value || typeof value !== 'object') return null
   const item = value as Record<string, unknown>
-  const limits = { token: 100, id: 160, oid: 160, text: ANTI_JUNK_TEXT_LIMIT, parentText: 2000, title: 300, author: 100, url: 2000 }
-  for (const [field, limit] of Object.entries(limits)) {
-    if (typeof item[field] !== 'string' || (item[field] as string).length > limit)
-      return null
+  const limits = {
+    token: 100,
+    id: 160,
+    oid: 160,
+    text: ANTI_JUNK_TEXT_LIMIT,
+    parentText: 2000,
+    title: 300,
+    author: 100,
+    url: 2000,
   }
-  if (!item.token || !item.id || !(item.text as string).trim())
-    return null
-  if (item.hasPictures !== undefined && typeof item.hasPictures !== 'boolean')
-    return null
+  for (const [field, limit] of Object.entries(limits)) {
+    if (typeof item[field] !== 'string' || (item[field] as string).length > limit) return null
+  }
+  if (!item.token || !item.id || !(item.text as string).trim()) return null
+  if (item.hasPictures !== undefined && typeof item.hasPictures !== 'boolean') return null
   let context: AntiJunkContext | undefined
   if (item.context !== undefined) {
     const source = item.context as AntiJunkContext
-    if (!source || !['video', 'moment', 'unknown'].includes(source.kind)
-      || (source.commentType !== undefined && (!Number.isSafeInteger(source.commentType) || source.commentType < 1))
-      || (source.parentMissing !== undefined && typeof source.parentMissing !== 'boolean')) {
+    if (
+      !source ||
+      !['video', 'moment', 'unknown'].includes(source.kind) ||
+      (source.commentType !== undefined &&
+        (!Number.isSafeInteger(source.commentType) || source.commentType < 1)) ||
+      (source.parentMissing !== undefined && typeof source.parentMissing !== 'boolean')
+    ) {
       return null
     }
-    for (const [key, limit] of Object.entries({ rootId: 160, parentId: 160, rootText: 4000, topic: 8000 })) {
+    for (const [key, limit] of Object.entries({
+      rootId: 160,
+      parentId: 160,
+      rootText: 4000,
+      topic: 8000,
+    })) {
       const field = source[key as keyof AntiJunkContext]
-      if (field !== undefined && (typeof field !== 'string' || field.length > limit))
-        return null
+      if (field !== undefined && (typeof field !== 'string' || field.length > limit)) return null
     }
-    if (source.related !== undefined && (!Array.isArray(source.related) || source.related.length > 6 || source.related.some(text => typeof text !== 'string' || text.length > 2000)))
+    if (
+      source.related !== undefined &&
+      (!Array.isArray(source.related) ||
+        source.related.length > 6 ||
+        source.related.some((text) => typeof text !== 'string' || text.length > 2000))
+    )
       return null
-    context = { kind: source.kind, commentType: source.commentType, rootId: source.rootId, parentId: source.parentId, rootText: source.rootText, parentMissing: source.parentMissing, topic: source.topic, related: source.related }
+    context = {
+      kind: source.kind,
+      commentType: source.commentType,
+      rootId: source.rootId,
+      parentId: source.parentId,
+      rootText: source.rootText,
+      parentMissing: source.parentMissing,
+      topic: source.topic,
+      related: source.related,
+    }
   }
   try {
     if (item.url) {
@@ -193,8 +259,7 @@ export function normalizeAntiJunkComment(value: unknown): AntiJunkComment | null
       if (!['https:', 'http:'].includes(url.protocol) || !url.hostname.endsWith('.bilibili.com'))
         return null
     }
-  }
-  catch {
+  } catch {
     return null
   }
   return {
@@ -215,27 +280,51 @@ export function normalizeAntiJunkComment(value: unknown): AntiJunkComment | null
 export interface AntiJunkBackup {
   format: 'BewlyCatAntiJunk'
   version: 2
-  config: { enabled: boolean, inspect: boolean, metadata: boolean, batchSize: number, requestsPerSecond: number, apiKey?: string }
-  data: { records: AntiJunkRecord[], checked: number, blocked: number }
+  config: {
+    enabled: boolean
+    inspect: boolean
+    metadata: boolean
+    batchSize: number
+    requestsPerSecond: number
+    apiKey?: string
+  }
+  data: { records: AntiJunkRecord[]; checked: number; blocked: number }
   library?: AntiJunkLibrary
 }
 
 /** 与原版设置备份使用不同的标识；全部验证通过后才允许写入。 */
 export function parseAntiJunkBackup(value: unknown): AntiJunkBackup {
-  if (!value || typeof value !== 'object')
-    throw new Error('invalid-backup')
+  if (!value || typeof value !== 'object') throw new Error('invalid-backup')
   const backup = value as Record<string, any>
   const config = backup.config
   const data = backup.data
-  if (backup.format !== 'BewlyCatAntiJunk' || ![1, 2].includes(backup.version)
-    || !config || typeof config.enabled !== 'boolean' || typeof config.inspect !== 'boolean'
-    || (config.metadata !== undefined && typeof config.metadata !== 'boolean')
-    || (config.batchSize !== undefined && (!Number.isInteger(config.batchSize) || config.batchSize < 1 || config.batchSize > ANTI_JUNK_BATCH_SIZE))
-    || (config.requestsPerSecond !== undefined && (!Number.isInteger(config.requestsPerSecond) || config.requestsPerSecond < 1 || config.requestsPerSecond > 20))
-    || (config.apiKey !== undefined && (typeof config.apiKey !== 'string' || config.apiKey.length > 512 || /[\r\n]/.test(config.apiKey)))
-    || !data || !Array.isArray(data.records) || data.records.length > 200
-    || !Number.isSafeInteger(data.checked) || !Number.isSafeInteger(data.blocked)
-    || data.blocked < 0 || data.checked < data.blocked) {
+  if (
+    backup.format !== 'BewlyCatAntiJunk' ||
+    ![1, 2].includes(backup.version) ||
+    !config ||
+    typeof config.enabled !== 'boolean' ||
+    typeof config.inspect !== 'boolean' ||
+    (config.metadata !== undefined && typeof config.metadata !== 'boolean') ||
+    (config.batchSize !== undefined &&
+      (!Number.isInteger(config.batchSize) ||
+        config.batchSize < 1 ||
+        config.batchSize > ANTI_JUNK_BATCH_SIZE)) ||
+    (config.requestsPerSecond !== undefined &&
+      (!Number.isInteger(config.requestsPerSecond) ||
+        config.requestsPerSecond < 1 ||
+        config.requestsPerSecond > 20)) ||
+    (config.apiKey !== undefined &&
+      (typeof config.apiKey !== 'string' ||
+        config.apiKey.length > 512 ||
+        /[\r\n]/.test(config.apiKey))) ||
+    !data ||
+    !Array.isArray(data.records) ||
+    data.records.length > 200 ||
+    !Number.isSafeInteger(data.checked) ||
+    !Number.isSafeInteger(data.blocked) ||
+    data.blocked < 0 ||
+    data.checked < data.blocked
+  ) {
     throw new Error('invalid-backup')
   }
   const records = data.records.map((item: unknown) => {
@@ -243,18 +332,39 @@ export function parseAntiJunkBackup(value: unknown): AntiJunkBackup {
     const time = (item as AntiJunkRecord | null)?.time
     const rule = (item as AntiJunkRecord | null)?.rule
     const round = (item as AntiJunkRecord | null)?.round
-    if (!normalized || typeof time !== 'number' || !Number.isFinite(time) || time < 0 || time > 8.64e15)
+    if (
+      !normalized ||
+      typeof time !== 'number' ||
+      !Number.isFinite(time) ||
+      time < 0 ||
+      time > 8.64e15
+    )
       throw new Error('invalid-backup')
-    if ((rule !== undefined && (typeof rule !== 'string' || rule.length > 40)) || (round !== undefined && ![0, 1, 2].includes(round)))
+    if (
+      (rule !== undefined && (typeof rule !== 'string' || rule.length > 40)) ||
+      (round !== undefined && ![0, 1, 2].includes(round))
+    )
       throw new Error('invalid-backup')
-    return { ...normalized, time, ...(rule !== undefined ? { rule } : {}), ...(round !== undefined ? { round } : {}) }
+    return {
+      ...normalized,
+      time,
+      ...(rule !== undefined ? { rule } : {}),
+      ...(round !== undefined ? { round } : {}),
+    }
   })
   if (new TextEncoder().encode(JSON.stringify(records)).length > 1_500_000)
     throw new Error('invalid-backup')
   return {
     format: 'BewlyCatAntiJunk',
     version: 2,
-    config: { enabled: config.enabled, inspect: config.inspect, metadata: config.metadata !== false, batchSize: config.batchSize ?? 10, requestsPerSecond: config.requestsPerSecond ?? 1, ...(config.apiKey !== undefined ? { apiKey: config.apiKey.trim() } : {}) },
+    config: {
+      enabled: config.enabled,
+      inspect: config.inspect,
+      metadata: config.metadata !== false,
+      batchSize: config.batchSize ?? 10,
+      requestsPerSecond: config.requestsPerSecond ?? 1,
+      ...(config.apiKey !== undefined ? { apiKey: config.apiKey.trim() } : {}),
+    },
     data: { records, checked: data.checked, blocked: data.blocked },
     ...(backup.library !== undefined ? { library: parseAntiJunkLibrary(backup.library) } : {}),
   }
@@ -270,28 +380,79 @@ export interface AntiJunkDecision {
 }
 
 /** Missing, duplicated and unknown IDs invalidate the entire response. */
-export function decodeAntiJunkVerdict(content: unknown, comments: AntiJunkComment[], review = false): AntiJunkDecision[] {
-  if (typeof content !== 'string' || content.length > 64000 || !comments.length || comments.length > ANTI_JUNK_BATCH_SIZE)
+export function decodeAntiJunkVerdict(
+  content: unknown,
+  comments: AntiJunkComment[],
+  review = false,
+): AntiJunkDecision[] {
+  if (
+    typeof content !== 'string' ||
+    content.length > 64000 ||
+    !comments.length ||
+    comments.length > ANTI_JUNK_BATCH_SIZE
+  )
     throw new Error('invalid-format')
   let text = content.replace(/^\uFEFF/, '').trim()
   if (text.startsWith('```') && text.endsWith('```'))
-    text = text.slice(3, -3).replace(/^json\b/i, '').trim()
+    text = text
+      .slice(3, -3)
+      .replace(/^json\b/i, '')
+      .trim()
   const parsed = JSON.parse(text)
-  if (!parsed || typeof parsed !== 'object' || Object.keys(parsed).length !== 1 || !Array.isArray(parsed.decisions) || parsed.decisions.length !== comments.length)
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    Object.keys(parsed).length !== 1 ||
+    !Array.isArray(parsed.decisions) ||
+    parsed.decisions.length !== comments.length
+  )
     throw new Error('invalid-format')
   const seen = new Set<number>()
-  const rules = ['normal', 'flood', 'offtopic', 'identity', 'attack', 'showoff', 'dismissal', 'mockery', 'spam', 'feedback']
+  const rules = [
+    'normal',
+    'flood',
+    'offtopic',
+    'identity',
+    'attack',
+    'showoff',
+    'dismissal',
+    'mockery',
+    'spam',
+    'feedback',
+  ]
   for (const item of parsed.decisions) {
-    if (!item || !Number.isInteger(item.n) || item.n < 1 || item.n > comments.length || seen.has(item.n)
-      || !(review ? ['allow', 'block'] : ['allow', 'block', 'review']).includes(item.verdict) || !rules.includes(item.rule)) {
+    if (
+      !item ||
+      !Number.isInteger(item.n) ||
+      item.n < 1 ||
+      item.n > comments.length ||
+      seen.has(item.n) ||
+      !(review ? ['allow', 'block'] : ['allow', 'block', 'review']).includes(item.verdict) ||
+      !rules.includes(item.rule)
+    ) {
       throw new Error('invalid-format')
     }
-    const keys = item.verdict === 'review' ? ['n', 'verdict', 'rule', 'reason', 'evidence', 'need'] : ['n', 'verdict', 'rule']
-    if (Object.keys(item).length !== keys.length || Object.keys(item).some(key => !keys.includes(key)))
+    const keys =
+      item.verdict === 'review'
+        ? ['n', 'verdict', 'rule', 'reason', 'evidence', 'need']
+        : ['n', 'verdict', 'rule']
+    if (
+      Object.keys(item).length !== keys.length ||
+      Object.keys(item).some((key) => !keys.includes(key))
+    )
       throw new Error('invalid-format')
-    if (item.verdict === 'review' && (!['interpretation', 'parent', 'topic'].includes(item.reason)
-      || typeof item.evidence !== 'string' || !item.evidence.trim() || item.evidence.length > 160 || !comments[item.n - 1].text.includes(item.evidence)
-      || typeof item.need !== 'string' || !item.need.trim() || item.need.length > 160 || item.rule === 'normal')) {
+    if (
+      item.verdict === 'review' &&
+      (!['interpretation', 'parent', 'topic'].includes(item.reason) ||
+        typeof item.evidence !== 'string' ||
+        !item.evidence.trim() ||
+        item.evidence.length > 160 ||
+        !comments[item.n - 1].text.includes(item.evidence) ||
+        typeof item.need !== 'string' ||
+        !item.need.trim() ||
+        item.need.length > 160 ||
+        item.rule === 'normal')
+    ) {
       throw new Error('invalid-format')
     }
     seen.add(item.n)
@@ -300,32 +461,56 @@ export function decodeAntiJunkVerdict(content: unknown, comments: AntiJunkCommen
 }
 
 export function antiJunkIdentity(item: AntiJunkComment) {
-  return JSON.stringify([item.context?.commentType ?? '', item.oid, item.id, item.text, item.hasPictures ?? null])
+  return JSON.stringify([
+    item.context?.commentType ?? '',
+    item.oid,
+    item.id,
+    item.text,
+    item.hasPictures ?? null,
+  ])
 }
 
 export function antiJunkSignature(item: AntiJunkComment) {
-  return JSON.stringify([antiJunkIdentity(item), item.parentText, item.title, item.video, item.context])
+  return JSON.stringify([
+    antiJunkIdentity(item),
+    item.parentText,
+    item.title,
+    item.video,
+    item.context,
+  ])
 }
 
-export type AntiJunkPageRequest
-  = | { type: 'BEWLY_ANTIJUNK_READY' }
-    | { type: 'BEWLY_ANTIJUNK_CANCEL', token: string }
-    | { type: 'BEWLY_ANTIJUNK_COMMENT' | 'BEWLY_ANTIJUNK_ADD_EXAMPLE', revision: string, comment: AntiJunkComment, verdict: 'block' | 'allow' }
+export type AntiJunkPageRequest =
+  | { type: 'BEWLY_ANTIJUNK_READY' }
+  | { type: 'BEWLY_ANTIJUNK_CANCEL'; token: string }
+  | {
+      type: 'BEWLY_ANTIJUNK_COMMENT' | 'BEWLY_ANTIJUNK_ADD_EXAMPLE'
+      revision: string
+      comment: AntiJunkComment
+      verdict: 'block' | 'allow'
+    }
 
 export function parseAntiJunkPageRequest(value: unknown): AntiJunkPageRequest | undefined {
-  if (!value || typeof value !== 'object')
-    return
+  if (!value || typeof value !== 'object') return
   const item = value as Record<string, unknown>
-  if (item.type === 'BEWLY_ANTIJUNK_READY')
-    return { type: item.type }
+  if (item.type === 'BEWLY_ANTIJUNK_READY') return { type: item.type }
   if (item.type === 'BEWLY_ANTIJUNK_CANCEL')
-    return typeof item.token === 'string' && item.token.length <= 100 ? { type: item.type, token: item.token } : undefined
-  if (item.type !== 'BEWLY_ANTIJUNK_COMMENT' && item.type !== 'BEWLY_ANTIJUNK_ADD_EXAMPLE')
-    return
-  if (typeof item.revision !== 'string' || item.revision.length > 100 || (item.verdict !== undefined && item.verdict !== 'block' && item.verdict !== 'allow'))
+    return typeof item.token === 'string' && item.token.length <= 100
+      ? { type: item.type, token: item.token }
+      : undefined
+  if (item.type !== 'BEWLY_ANTIJUNK_COMMENT' && item.type !== 'BEWLY_ANTIJUNK_ADD_EXAMPLE') return
+  if (
+    typeof item.revision !== 'string' ||
+    item.revision.length > 100 ||
+    (item.verdict !== undefined && item.verdict !== 'block' && item.verdict !== 'allow')
+  )
     return
   const comment = normalizeAntiJunkComment(item.comment)
-  if (!comment || JSON.stringify(comment).length > 48000)
-    return
-  return { type: item.type, revision: item.revision, comment, verdict: item.verdict === 'allow' ? 'allow' : 'block' }
+  if (!comment || JSON.stringify(comment).length > 48000) return
+  return {
+    type: item.type,
+    revision: item.revision,
+    comment,
+    verdict: item.verdict === 'allow' ? 'allow' : 'block',
+  }
 }

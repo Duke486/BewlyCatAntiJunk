@@ -8,6 +8,7 @@ import type { DataItem as MomentItem, MomentResult } from '~/models/moment/momen
 import api from '~/utils/api'
 import type { ApiErrorReportSource } from '~/utils/apiDiagnostics'
 import { decodeHtmlEntities } from '~/utils/htmlDecode'
+import { resolveMomentAuthor } from '~/utils/momentAuthor'
 
 interface VideoElement {
   uniqueId: string
@@ -41,15 +42,12 @@ let requestVersion = 0
 
 onMounted(() => {
   initPageAction()
-  if (!tabState.restored)
-    void initData()
-  else if (!hasLoaded.value)
-    void getData()
+  if (!tabState.restored) void initData()
+  else if (!hasLoaded.value) void getData()
 })
 
 async function initData() {
-  if (!tabState.isCurrent())
-    return
+  if (!tabState.isCurrent()) return
 
   const version = ++requestVersion
   needToLoginFirst.value = false
@@ -70,19 +68,19 @@ function isRequestCurrent(version: number) {
 
 // 数据转换函数：将原始数据转换为 VideoCard 所需的显示格式
 function transformSubscribedSeriesVideo(item: VideoElement): Video | undefined {
-  if (!item.item)
-    return undefined
+  if (!item.item) return undefined
 
   const momentItem = item.item
+  const resolvedAuthor = resolveMomentAuthor(momentItem)
   return {
     id: momentItem.modules.module_author.mid,
     title: decodeHtmlEntities(`${momentItem.modules.module_dynamic.major.pgc?.title}`),
     cover: `${momentItem.modules.module_dynamic.major.pgc?.cover}`,
     author: {
       name: decodeHtmlEntities(momentItem.modules.module_author.name),
-      authorUrl: momentItem.modules.module_author.jump_url,
+      authorUrl: resolvedAuthor.url || undefined,
       authorFace: momentItem.modules.module_author.face,
-      mid: momentItem.modules.module_author.mid,
+      mid: resolvedAuthor.userMid,
     },
     viewStr: momentItem.modules.module_dynamic.major.pgc?.stat.play,
     danmakuStr: momentItem.modules.module_dynamic.major.pgc?.stat.danmaku,
@@ -94,8 +92,7 @@ function transformSubscribedSeriesVideo(item: VideoElement): Video | undefined {
 }
 
 async function getData(version = requestVersion) {
-  if (!isRequestCurrent(version))
-    return
+  if (!isRequestCurrent(version)) return
 
   emit('beforeLoading')
   isLoading.value = true
@@ -104,19 +101,16 @@ async function getData(version = requestVersion) {
   try {
     // 初次加载时多加载几批确保有足够内容
     for (let i = 0; i < 3 && !noMoreContent.value; i++) {
-      if (!isRequestCurrent(version))
-        return
+      if (!isRequestCurrent(version)) return
 
-      loaded = await getSubscribedSeriesVideos(version) || loaded
-      if (!isRequestCurrent(version))
-        return
+      loaded = (await getSubscribedSeriesVideos(version)) || loaded
+      if (!isRequestCurrent(version)) return
     }
     if (isRequestCurrent(version)) {
       requestFailed.value = !loaded
       hasLoaded.value ||= loaded
     }
-  }
-  finally {
+  } finally {
     if (isRequestCurrent(version)) {
       isLoading.value = false
       emit('afterLoading')
@@ -130,8 +124,7 @@ function initPageAction() {
 }
 
 async function reachBottomHandler() {
-  if (!tabState.isCurrent() || isLoading.value)
-    return
+  if (!tabState.isCurrent() || isLoading.value) return
   if (noMoreContent.value) {
     noMoreContentWarning.value = true
     return
@@ -141,15 +134,13 @@ async function reachBottomHandler() {
 }
 
 async function refreshHandler() {
-  if (!tabState.isCurrent() || isLoading.value)
-    return
+  if (!tabState.isCurrent() || isLoading.value) return
 
   await initData()
 }
 
 async function getSubscribedSeriesVideos(version: number): Promise<boolean> {
-  if (noMoreContent.value)
-    return true
+  if (noMoreContent.value) return true
 
   if (offset.value === '0') {
     noMoreContent.value = true
@@ -163,8 +154,7 @@ async function getSubscribedSeriesVideos(version: number): Promise<boolean> {
       update_baseline: updateBaseline.value,
     })
 
-    if (!isRequestCurrent(version))
-      return false
+    if (!isRequestCurrent(version)) return false
 
     if (response.code === -101) {
       noMoreContent.value = true
@@ -172,8 +162,7 @@ async function getSubscribedSeriesVideos(version: number): Promise<boolean> {
       return true
     }
 
-    if (response.code !== 0)
-      return false
+    if (response.code !== 0) return false
 
     offset.value = response.data.offset
     updateBaseline.value = response.data.update_baseline
@@ -186,8 +175,7 @@ async function getSubscribedSeriesVideos(version: number): Promise<boolean> {
 
     videoList.value = [...videoList.value, ...newItems]
     return true
-  }
-  catch {
+  } catch {
     // 忽略错误
     return false
   }
@@ -195,8 +183,7 @@ async function getSubscribedSeriesVideos(version: number): Promise<boolean> {
 
 // 供 VideoCardGrid 预加载调用的函数
 async function handleLoadMore() {
-  if (!tabState.isCurrent() || isLoading.value || noMoreContent.value)
-    return
+  if (!tabState.isCurrent() || isLoading.value || noMoreContent.value) return
 
   const version = requestVersion
   isLoading.value = true
@@ -206,10 +193,8 @@ async function handleLoadMore() {
       requestFailed.value = !loaded
       hasLoaded.value ||= loaded
     }
-  }
-  finally {
-    if (isRequestCurrent(version))
-      isLoading.value = false
+  } finally {
+    if (isRequestCurrent(version)) isLoading.value = false
   }
 }
 
@@ -218,10 +203,8 @@ function jumpToLoginPage() {
 }
 
 onBeforeUnmount(() => {
-  if (handleReachBottom.value === reachBottomHandler)
-    handleReachBottom.value = undefined
-  if (handlePageRefresh.value === refreshHandler)
-    handlePageRefresh.value = undefined
+  if (handleReachBottom.value === reachBottomHandler) handleReachBottom.value = undefined
+  if (handlePageRefresh.value === refreshHandler) handlePageRefresh.value = undefined
 })
 
 defineExpose({ initData })
